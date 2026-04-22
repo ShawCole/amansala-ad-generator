@@ -1,0 +1,57 @@
+{
+  "bikini-bootcamp": {
+    "label": "Bikini Bootcamp / Restore & Renew",
+    "headlines": [
+      "bikini\nbootcamp",
+      "the ultimate\ntune up",
+      "your body.\nyour time."
+    ],
+    "subtitle": "A VACATION WITH A PURPOSE",
+    "body": "work out, eat fresh & get pampered\nsteps from the beach.",
+    "preferredPhotoTags": ["yoga", "beach", "pool"]
+  },
+  "mothers-day": {
+    "label": "Mother's Day Retreat",
+    "headlines": [
+      "make memories\nwith mom",
+      "give mom\nthe gift\nshe wants",
+      "four nights\nin tulum"
+    ],
+    "subtitle": "MAY 7–11 • TULUM",
+    "body": "save up to $500 when you gift mom\na trip to tulum.",
+    "preferredPhotoTags": ["pool", "beach", "family"]
+  },
+  "soulful-singles": {
+    "label": "Soulful Singles",
+    "headlines": [
+      "soulful\nsingles",
+      "worst case,\namazing vacation.",
+      "find your\ntribe"
+    ],
+    "subtitle": "CONNECT • EXPLORE • TRANSFORM",
+    "body": "meet like-minded women on the\nbeach in tulum.",
+    "preferredPhotoTags": ["beach", "group", "yoga"]
+  },
+  "restore-renew": {
+    "label": "Restore & Renew",
+    "headlines": [
+      "restore\n& renew",
+      "reset your\nenergy",
+      "deep\nwellness"
+    ],
+    "subtitle": "ECO-CHIC WELLNESS RETREAT",
+    "body": "disconnect to reconnect. yoga,\nmeditation, spa & ocean views.",
+    "preferredPhotoTags": ["yoga", "spa", "beach"]
+  },
+  "custom": {
+    "label": "Custom",
+    "headlines": [
+      "your\nheadline",
+      "second\noption",
+      "third\nvariation"
+    ],
+    "subtitle": "YOUR SUBTITLE HERE",
+    "body": "your body copy here.",
+    "preferredPhotoTags": []
+  }
+}

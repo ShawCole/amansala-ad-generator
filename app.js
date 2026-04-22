@@ -1,99 +1,242 @@
-// Amansala Ad Generator — app.js
+// Amansala Ad Generator — brand-locked systematic variation engine.
 // All DOM content is rendered from application-defined data, not user HTML input.
 
+// ───────────────────────── Config ─────────────────────────
+
 const AD_SIZES = [
-  { w: 300, h: 250, name: '300x250', cat: 'DSP' },
-  { w: 728, h: 90, name: '728x90', cat: 'DSP' },
-  { w: 160, h: 600, name: '160x600', cat: 'DSP' },
-  { w: 320, h: 50, name: '320x50', cat: 'DSP' },
-  { w: 300, h: 600, name: '300x600', cat: 'DSP' },
-  { w: 320, h: 100, name: '320x100', cat: 'DSP' },
-  { w: 336, h: 280, name: '336x280', cat: 'DSP' },
-  { w: 970, h: 90, name: '970x90', cat: 'DSP' },
-  { w: 1080, h: 1080, name: '1080x1080', cat: 'Meta' },
-  { w: 1080, h: 1920, name: '1080x1920', cat: 'Meta' },
-  { w: 1200, h: 628, name: '1200x628', cat: 'Meta' },
+  { w: 300,  h: 250,  name: '300x250',   cat: 'DSP',  layout: 'rect'     },
+  { w: 728,  h: 90,   name: '728x90',    cat: 'DSP',  layout: 'leaderbd' },
+  { w: 160,  h: 600,  name: '160x600',   cat: 'DSP',  layout: 'tall'     },
+  { w: 320,  h: 50,   name: '320x50',    cat: 'DSP',  layout: 'mbanner'  },
+  { w: 300,  h: 600,  name: '300x600',   cat: 'DSP',  layout: 'tall'     },
+  { w: 320,  h: 100,  name: '320x100',   cat: 'DSP',  layout: 'mbanner'  },
+  { w: 336,  h: 280,  name: '336x280',   cat: 'DSP',  layout: 'rect'     },
+  { w: 970,  h: 90,   name: '970x90',    cat: 'DSP',  layout: 'leaderbd' },
+  { w: 1080, h: 1080, name: '1080x1080', cat: 'Meta', layout: 'square'   },
+  { w: 1080, h: 1920, name: '1080x1920', cat: 'Meta', layout: 'tall'     },
+  { w: 1200, h: 628,  name: '1200x628',  cat: 'Meta', layout: 'rect'     },
 ];
 
-const CAMPAIGNS = {
-  'bikini-bootcamp': {
-    headlines: ['Bikini\\nBootcamp', 'Transform\\nYour Body', 'Beach Body\\nRetreat'],
-    subtitle: 'A VACATION WITH A PURPOSE',
-    body: 'THE ULTIMATE\nMIND BODY SPIRIT\nTUNE UP.\n\nWORK OUT, EAT FRESH\nN HEALTHY AND GET\nPAMPERED\nON THE BEACH.'
-  },
-  'mothers-day': {
-    headlines: ["Mother's Day\\nRetreat", 'Give Mom\\nThe Beach', 'She Deserves\\nThis'],
-    subtitle: 'MAY 7-11 TULUM',
-    body: 'THE ULTIMATE GIFT\nFOR THE WOMAN\nWHO DOES IT ALL.\n\nBEACHFRONT YOGA,\nSPA & WELLNESS.'
-  },
-  'soulful-singles': {
-    headlines: ['Soulful\\nSingles', 'Find Your\\nTribe', 'Solo Travel\\nDone Right'],
-    subtitle: 'CONNECT \u2022 EXPLORE \u2022 TRANSFORM',
-    body: 'MEET LIKE-MINDED\nWOMEN ON THE\nBEACH IN TULUM.\n\nYOGA, ADVENTURES\n& NEW FRIENDSHIPS.'
-  },
-  'restore-renew': {
-    headlines: ['Restore\\n& Renew', 'Reset Your\\nEnergy', 'Deep\\nWellness'],
-    subtitle: 'ECO-CHIC WELLNESS RETREAT',
-    body: 'DISCONNECT TO\nRECONNECT.\n\nYOGA, MEDITATION,\nSPA & OCEAN VIEWS.'
-  },
-  'summer-family': {
-    headlines: ['Family\\nGetaway', 'Summer In\\nTulum', 'Beach\\nAdventures'],
-    subtitle: 'FAMILY FRIENDLY ECO-RESORT',
-    body: 'BEACHFRONT FUN\nFOR THE WHOLE\nFAMILY.\n\nYOGA, SNORKELING,\nCENOTES & MORE.'
-  },
-  'custom': {
-    headlines: ['Your\\nHeadline', 'Second\\nOption', 'Third\\nVariation'],
-    subtitle: 'YOUR SUBTITLE HERE',
-    body: 'YOUR BODY\nCOPY HERE.'
-  }
+// Which photo orientations work for which layout (in priority order)
+const LAYOUT_ORIENT_PREFS = {
+  rect:     ['landscape', 'square', 'portrait'],
+  leaderbd: ['landscape', 'square'],
+  tall:     ['portrait', 'square'],
+  mbanner:  ['landscape', 'square'],
+  square:   ['square', 'landscape', 'portrait'],
 };
 
-const PHOTOS = Array.from({length: 13}, (_, i) => 'assets/photos/' + (i + 1) + '.png');
-let selectedPhotos = new Set();
-let selectedLogo = 'white';
-let generatedAds = [];
+const PHOTO_COUNT = 13;
+const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({
+  idx: i,
+  src: 'assets/photos/' + (i + 1) + '.png',
+  orient: 'portrait',  // loaded async from actual image dimensions
+  focal: { x: 50, y: 40 },  // % — default upper-middle
+  tags: [],
+  w: 0,
+  h: 0,
+}));
 
-function init() {
+// ───────────────────────── State ─────────────────────────
+
+let CAMPAIGNS = {};
+let selectedPhotos = new Set();
+let selectedLogo = 'black';
+let selectedTreatment = 'espresso';
+let generatedAds = [];
+let activeFilter = 'all';
+let taggerPhotoIdx = null;
+
+// ───────────────────────── Init ─────────────────────────
+
+async function init() {
+  await loadCampaigns();
+  await loadPhotoMetadata();
   renderPhotoGrid();
-  loadCampaign('bikini-bootcamp');
+  populateCampaignSelect();
+  loadCampaign(Object.keys(CAMPAIGNS)[0]);
 }
+
+async function loadCampaigns() {
+  try {
+    const r = await fetch('campaigns.json');
+    CAMPAIGNS = await r.json();
+  } catch (e) {
+    console.error('campaigns.json load failed', e);
+    CAMPAIGNS = { custom: { label: 'Custom', headlines: ['headline'], subtitle: '', body: '' } };
+  }
+}
+
+function populateCampaignSelect() {
+  const sel = document.getElementById('campaignSelect');
+  sel.textContent = '';
+  Object.entries(CAMPAIGNS).forEach(([k, v]) => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = v.label || k;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadPhotoMetadata() {
+  // Auto-detect orientation from actual image dimensions
+  await Promise.all(PHOTOS.map(p => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      p.w = img.naturalWidth;
+      p.h = img.naturalHeight;
+      const ratio = p.w / p.h;
+      if (ratio > 1.2) p.orient = 'landscape';
+      else if (ratio < 0.83) p.orient = 'portrait';
+      else p.orient = 'square';
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = p.src;
+  })));
+
+  // Restore per-photo tags from localStorage
+  try {
+    const saved = JSON.parse(localStorage.getItem('amansala-photo-meta') || '{}');
+    PHOTOS.forEach(p => {
+      const s = saved[p.idx];
+      if (s) {
+        if (s.orient) p.orient = s.orient;
+        if (s.focal) p.focal = s.focal;
+        if (s.tags) p.tags = s.tags;
+      }
+    });
+  } catch (e) { /* fresh start */ }
+}
+
+function savePhotoMetadata() {
+  const out = {};
+  PHOTOS.forEach(p => {
+    out[p.idx] = { orient: p.orient, focal: p.focal, tags: p.tags };
+  });
+  localStorage.setItem('amansala-photo-meta', JSON.stringify(out));
+}
+
+// ───────────────────────── Photo grid ─────────────────────────
 
 function renderPhotoGrid() {
   const grid = document.getElementById('photoGrid');
   grid.textContent = '';
-  PHOTOS.forEach(function(p, i) {
-    const thumb = document.createElement('div');
-    thumb.className = 'photo-thumb';
-    thumb.dataset.idx = i;
-    thumb.onclick = function() { togglePhoto(i); };
+  PHOTOS.forEach(p => {
+    const tile = document.createElement('div');
+    tile.className = 'photo-tile';
+    if (selectedPhotos.has(p.idx)) tile.classList.add('selected');
+
     const img = document.createElement('img');
-    img.src = p;
-    img.alt = 'Photo ' + (i + 1);
+    img.src = p.src;
     img.loading = 'lazy';
-    thumb.appendChild(img);
-    grid.appendChild(thumb);
+    img.style.objectPosition = p.focal.x + '% ' + p.focal.y + '%';
+    tile.appendChild(img);
+
+    const badge = document.createElement('div');
+    badge.className = 'orient-badge';
+    badge.textContent = p.orient.slice(0, 4);
+    tile.appendChild(badge);
+
+    const check = document.createElement('div');
+    check.className = 'tile-check';
+    check.textContent = '✓';
+    tile.appendChild(check);
+
+    tile.onclick = (e) => {
+      if (e.shiftKey) {
+        openTagger(p.idx);
+      } else {
+        togglePhoto(p.idx);
+      }
+    };
+    tile.oncontextmenu = (e) => {
+      e.preventDefault();
+      openTagger(p.idx);
+    };
+    tile.title = 'Click: select • Shift+click or right-click: tag';
+    grid.appendChild(tile);
   });
+  updatePhotoCount();
+}
+
+function updatePhotoCount() {
+  document.getElementById('photoCount').textContent = selectedPhotos.size + ' selected';
 }
 
 function togglePhoto(idx) {
-  if (selectedPhotos.has(idx)) {
-    selectedPhotos.delete(idx);
-  } else {
-    selectedPhotos.add(idx);
-  }
-  document.querySelectorAll('.photo-thumb').forEach(function(el, i) {
-    el.classList.toggle('selected', selectedPhotos.has(i));
-  });
+  if (selectedPhotos.has(idx)) selectedPhotos.delete(idx);
+  else selectedPhotos.add(idx);
+  renderPhotoGrid();
 }
+
+function selectAllPhotos() {
+  PHOTOS.forEach(p => selectedPhotos.add(p.idx));
+  renderPhotoGrid();
+}
+
+function selectByOrient(orient) {
+  selectedPhotos.clear();
+  PHOTOS.forEach(p => { if (p.orient === orient) selectedPhotos.add(p.idx); });
+  renderPhotoGrid();
+}
+
+// ───────────────────────── Photo tagger ─────────────────────────
+
+function openTagger(idx) {
+  taggerPhotoIdx = idx;
+  const p = PHOTOS[idx];
+  document.getElementById('taggerImg').src = p.src;
+  document.getElementById('taggerOrient').value = p.orient;
+  document.getElementById('taggerTags').value = p.tags.join(', ');
+  const dot = document.getElementById('focalDot');
+  dot.style.left = p.focal.x + '%';
+  dot.style.top = p.focal.y + '%';
+  document.getElementById('taggerOverlay').classList.add('active');
+}
+
+function closeTagger() {
+  document.getElementById('taggerOverlay').classList.remove('active');
+  taggerPhotoIdx = null;
+}
+
+function setFocal(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  const dot = document.getElementById('focalDot');
+  dot.style.left = x + '%';
+  dot.style.top = y + '%';
+  dot.dataset.x = x;
+  dot.dataset.y = y;
+}
+
+function saveTagger() {
+  if (taggerPhotoIdx === null) return;
+  const p = PHOTOS[taggerPhotoIdx];
+  const dot = document.getElementById('focalDot');
+  const x = parseFloat(dot.dataset.x);
+  const y = parseFloat(dot.dataset.y);
+  if (!isNaN(x)) p.focal.x = x;
+  if (!isNaN(y)) p.focal.y = y;
+  p.orient = document.getElementById('taggerOrient').value;
+  p.tags = document.getElementById('taggerTags').value
+    .split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  savePhotoMetadata();
+  renderPhotoGrid();
+  closeTagger();
+}
+
+// ───────────────────────── Headlines / campaign ─────────────────────────
 
 function loadCampaign(name) {
   const c = CAMPAIGNS[name];
   if (!c) return;
   const list = document.getElementById('headlineList');
   list.textContent = '';
-  c.headlines.forEach(function(h) { addHeadline(h); });
-  document.getElementById('subtitleInput').value = c.subtitle;
-  document.getElementById('bodyInput').value = c.body;
+  c.headlines.forEach(h => addHeadline(h));
+  document.getElementById('subtitleInput').value = c.subtitle || '';
+  document.getElementById('bodyInput').value = c.body || '';
 }
 
 function addHeadline(text) {
@@ -103,49 +246,78 @@ function addHeadline(text) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = text || '';
-  input.placeholder = 'Headline (use \\n for line breaks)';
+  input.placeholder = 'headline (use \\n for line break)';
   const btn = document.createElement('button');
-  btn.textContent = '\u00D7';
-  btn.onclick = function() { row.remove(); };
+  btn.textContent = '×';
+  btn.onclick = () => row.remove();
   row.appendChild(input);
   row.appendChild(btn);
   list.appendChild(row);
 }
 
 function selectLogo(el) {
-  document.querySelectorAll('.logo-opt').forEach(function(o) { o.classList.remove('selected'); });
+  document.querySelectorAll('.logo-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
   selectedLogo = el.dataset.logo;
 }
 
+function selectTreatment(el) {
+  document.querySelectorAll('.treatment-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTreatment = el.dataset.treatment;
+}
+
+// ───────────────────────── Custom font upload ─────────────────────────
+
+function loadCustomFont(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const font = new FontFace('ArchitypeBayer', 'url(' + url + ')');
+  font.load().then(f => {
+    document.fonts.add(f);
+    alert('Custom headline font loaded. Re-generate to apply.');
+  }).catch(err => {
+    alert('Font load failed: ' + err.message);
+  });
+}
+
+// ───────────────────────── Photo-to-size compatibility ─────────────────────────
+
+function pickCompatiblePhotos(size) {
+  const prefs = LAYOUT_ORIENT_PREFS[size.layout];
+  const selected = Array.from(selectedPhotos).map(i => PHOTOS[i]);
+  const matches = [];
+  for (const orient of prefs) {
+    const ofType = selected.filter(p => p.orient === orient);
+    matches.push(...ofType);
+  }
+  return matches.length ? matches : selected;
+}
+
+// ───────────────────────── Generation ─────────────────────────
+
+function gatherHeadlines() {
+  return Array.from(document.querySelectorAll('.headline-row input'))
+    .map(el => el.value.replace(/\\n/g, '\n'))
+    .filter(h => h.trim());
+}
+
 function generateAds() {
-  const photos = Array.from(selectedPhotos);
-  if (photos.length === 0) { alert('Select at least one photo'); return; }
-
-  const headlines = Array.from(document.querySelectorAll('.headline-row input'))
-    .map(function(el) { return el.value.replace(/\\n/g, '\n'); })
-    .filter(function(h) { return h.trim(); });
-
+  if (selectedPhotos.size === 0) { alert('Select at least one photo'); return; }
+  const headlines = gatherHeadlines();
   if (headlines.length === 0) { alert('Add at least one headline'); return; }
 
   const subtitle = document.getElementById('subtitleInput').value;
   const body = document.getElementById('bodyInput').value;
-  const fadeType = document.getElementById('fadeSelect').value;
+  const overlay = document.getElementById('overlaySelect').value;
 
   generatedAds = [];
-  photos.forEach(function(photoIdx) {
-    headlines.forEach(function(headline) {
-      AD_SIZES.forEach(function(size) {
-        generatedAds.push({
-          photoIdx: photoIdx,
-          photoSrc: PHOTOS[photoIdx],
-          headline: headline,
-          subtitle: subtitle,
-          body: body,
-          size: size,
-          fadeType: fadeType,
-          logo: selectedLogo
-        });
+  AD_SIZES.forEach(size => {
+    const photos = pickCompatiblePhotos(size);
+    photos.forEach(photo => {
+      headlines.forEach(headline => {
+        generatedAds.push(buildAd({ photo, headline, subtitle, body, size, overlay }));
       });
     });
   });
@@ -153,228 +325,436 @@ function generateAds() {
   renderPreviews();
 }
 
+function generateFullMatrix() {
+  if (selectedPhotos.size === 0) { selectAllPhotos(); }
+  generateAds();
+}
+
+function buildAd({ photo, headline, subtitle, body, size, overlay }) {
+  return {
+    photo,
+    headline,
+    subtitle,
+    body,
+    size,
+    overlay,
+    treatment: selectedTreatment,
+    logo: selectedLogo,
+  };
+}
+
+// ───────────────────────── Rendering ─────────────────────────
+
 function renderPreviews() {
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('previewArea').style.display = 'block';
   document.getElementById('downloadBar').style.display = 'flex';
 
-  var photos = new Set(generatedAds.map(function(a) { return a.photoIdx; })).size;
-  var headlineCount = new Set(generatedAds.map(function(a) { return a.headline; })).size;
+  const uniquePhotos = new Set(generatedAds.map(a => a.photo.idx)).size;
+  const uniqueHeadlines = new Set(generatedAds.map(a => a.headline)).size;
 
-  var statsBar = document.getElementById('statsBar');
+  const stats = [
+    [generatedAds.length, 'variations'],
+    [uniquePhotos, 'photos'],
+    [uniqueHeadlines, 'headlines'],
+    [AD_SIZES.length, 'sizes'],
+  ];
+  const statsBar = document.getElementById('statsBar');
   statsBar.textContent = '';
-  [
-    [generatedAds.length, 'total ads'],
-    [photos, 'photos'],
-    [headlineCount, 'headlines'],
-    [AD_SIZES.length, 'sizes']
-  ].forEach(function(s) {
-    var chip = document.createElement('div');
+  stats.forEach(([n, lbl]) => {
+    const chip = document.createElement('div');
     chip.className = 'stat-chip';
-    var strong = document.createElement('strong');
-    strong.textContent = s[0];
+    const strong = document.createElement('strong');
+    strong.textContent = n;
     chip.appendChild(strong);
-    chip.appendChild(document.createTextNode(' ' + s[1]));
+    chip.appendChild(document.createTextNode(lbl));
     statsBar.appendChild(chip);
   });
 
-  var filters = document.getElementById('sizeFilters');
+  const filters = document.getElementById('sizeFilters');
   filters.textContent = '';
-  var allBtn = document.createElement('button');
-  allBtn.className = 'size-filter active';
-  allBtn.textContent = 'All';
-  allBtn.onclick = function() { filterSize('all', allBtn); };
-  filters.appendChild(allBtn);
-
-  AD_SIZES.forEach(function(s) {
-    var btn = document.createElement('button');
-    btn.className = 'size-filter';
-    btn.textContent = s.name;
-    btn.onclick = function() { filterSize(s.name, btn); };
+  ['all', ...AD_SIZES.map(s => s.name)].forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'size-filter' + (name === activeFilter ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => filterBy(name, btn);
     filters.appendChild(btn);
   });
 
-  renderGrid('all');
+  renderGrid();
 }
 
-function filterSize(size, btn) {
-  document.querySelectorAll('.size-filter').forEach(function(b) { b.classList.remove('active'); });
+function filterBy(name, btn) {
+  activeFilter = name;
+  document.querySelectorAll('.size-filter').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  renderGrid(size);
+  renderGrid();
 }
 
-function renderGrid(filter) {
-  var grid = document.getElementById('previewGrid');
+function renderGrid() {
+  const grid = document.getElementById('previewGrid');
   grid.textContent = '';
-  var ads = filter === 'all' ? generatedAds : generatedAds.filter(function(a) { return a.size.name === filter; });
-  var maxPreviewWidth = 300;
+  const ads = activeFilter === 'all' ? generatedAds : generatedAds.filter(a => a.size.name === activeFilter);
+  const MAX_PREVIEW_W = 320;
 
-  ads.forEach(function(ad, idx) {
-    var scale = Math.min(maxPreviewWidth / ad.size.w, 1);
-    var pw = Math.round(ad.size.w * scale);
-    var ph = Math.round(ad.size.h * scale);
-    var isPortrait = ad.size.h > ad.size.w;
-    var isWide = ad.size.w / ad.size.h > 4;
-    var baseFontScale = Math.min(ad.size.w, ad.size.h) / 600;
-    var headlineSize = Math.max(8, Math.round(32 * baseFontScale * scale));
-    var subtitleSize = Math.max(5, Math.round(10 * baseFontScale * scale));
-    var bodySize = Math.max(5, Math.round(12 * baseFontScale * scale));
-    var logoH = Math.max(12, Math.round(40 * baseFontScale * scale));
-
-    var preview = document.createElement('div');
-    preview.className = 'ad-preview';
-    preview.dataset.size = ad.size.name;
-
-    var header = document.createElement('div');
-    header.className = 'ad-preview-header';
-    var sizeLabel = document.createElement('span');
-    sizeLabel.textContent = ad.size.name + ' (' + ad.size.cat + ')';
-    var photoLabel = document.createElement('span');
-    photoLabel.textContent = 'Photo ' + (ad.photoIdx + 1);
-    header.appendChild(sizeLabel);
-    header.appendChild(photoLabel);
-
-    var canvas = document.createElement('div');
-    canvas.className = 'ad-canvas';
-    canvas.style.cssText = 'width:' + pw + 'px;height:' + ph + 'px;position:relative;overflow:hidden;';
-
-    // Background image
-    var bgImg = document.createElement('img');
-    bgImg.src = ad.photoSrc;
-    bgImg.style.cssText = 'width:' + pw + 'px;height:' + ph + 'px;object-fit:cover;position:absolute;top:0;left:0;';
-    canvas.appendChild(bgImg);
-
-    // Fade overlay
-    if (ad.fadeType === 'radial') {
-      var fade = document.createElement('div');
-      fade.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:70%;background:radial-gradient(ellipse at center bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 40%, transparent 75%);pointer-events:none;';
-      canvas.appendChild(fade);
-    } else if (ad.fadeType === 'gradient') {
-      var fade2 = document.createElement('div');
-      fade2.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(transparent, rgba(0,0,0,0.5));pointer-events:none;';
-      canvas.appendChild(fade2);
-    }
-
-    // Text layer
-    var headlineLines = ad.headline.split('\n');
-    var textContainer = document.createElement('div');
-    textContainer.style.cssText = 'position:absolute;z-index:2;';
-
-    if (isWide) {
-      textContainer.style.cssText += 'top:0;left:0;right:0;bottom:0;display:flex;align-items:center;padding:0 ' + (pw * 0.03) + 'px;';
-      var textInner = document.createElement('div');
-      textInner.style.marginLeft = (pw * 0.15) + 'px';
-
-      var h = document.createElement('div');
-      h.style.cssText = 'font-size:' + headlineSize + 'px;font-weight:700;color:white;text-shadow:0 1px 4px rgba(0,0,0,0.5);line-height:1.1;text-transform:uppercase;';
-      headlineLines.forEach(function(line, li) {
-        if (li > 0) h.appendChild(document.createElement('br'));
-        h.appendChild(document.createTextNode(line));
-      });
-      textInner.appendChild(h);
-
-      var sub = document.createElement('div');
-      sub.style.cssText = 'font-size:' + subtitleSize + 'px;color:white;opacity:0.9;letter-spacing:0.1em;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,0.5);';
-      sub.textContent = ad.subtitle;
-      textInner.appendChild(sub);
-
-      textContainer.appendChild(textInner);
-    } else {
-      var padPct = isPortrait ? '5%' : '8%';
-      textContainer.style.cssText += 'top:' + (isPortrait ? '5%' : '10%') + ';left:0;right:0;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 ' + padPct + ';';
-
-      var h2 = document.createElement('div');
-      h2.style.cssText = 'font-size:' + headlineSize + 'px;font-weight:700;color:white;text-shadow:0 2px 6px rgba(0,0,0,0.5);line-height:1.1;text-transform:uppercase;';
-      headlineLines.forEach(function(line, li) {
-        if (li > 0) h2.appendChild(document.createElement('br'));
-        h2.appendChild(document.createTextNode(line));
-      });
-      textContainer.appendChild(h2);
-
-      var sub2 = document.createElement('div');
-      sub2.style.cssText = 'font-size:' + subtitleSize + 'px;color:white;opacity:0.9;letter-spacing:0.12em;margin-top:' + Math.max(2, headlineSize * 0.3) + 'px;text-shadow:0 1px 3px rgba(0,0,0,0.5);';
-      sub2.textContent = ad.subtitle;
-      textContainer.appendChild(sub2);
-    }
-    canvas.appendChild(textContainer);
-
-    // Body text for non-wide formats
-    if (!isWide && ad.body) {
-      var bodyContainer = document.createElement('div');
-      var bPad = isPortrait ? '5%' : '8%';
-      bodyContainer.style.cssText = 'position:absolute;bottom:' + (isPortrait ? '15%' : '20%') + ';left:0;right:0;text-align:center;padding:0 ' + bPad + ';z-index:2;';
-      var bodyDiv = document.createElement('div');
-      bodyDiv.style.cssText = 'font-size:' + bodySize + 'px;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.5);line-height:1.4;text-transform:uppercase;';
-      ad.body.split('\n').forEach(function(line, li) {
-        if (li > 0) bodyDiv.appendChild(document.createElement('br'));
-        bodyDiv.appendChild(document.createTextNode(line));
-      });
-      bodyContainer.appendChild(bodyDiv);
-      canvas.appendChild(bodyContainer);
-    }
-
-    // Logo
-    var logoImg = document.createElement('img');
-    logoImg.src = 'assets/logos/logo-' + ad.logo + '.png';
-    logoImg.style.cssText = 'position:absolute;z-index:3;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.3));';
-    if (isWide) {
-      logoImg.style.cssText += 'left:' + (pw * 0.02) + 'px;bottom:' + (ph * 0.1) + 'px;height:' + logoH + 'px;width:auto;';
-    } else if (isPortrait) {
-      logoImg.style.cssText += 'bottom:' + (ph * 0.03) + 'px;left:50%;transform:translateX(-50%);height:' + logoH + 'px;width:auto;';
-    } else {
-      logoImg.style.cssText += 'bottom:' + (ph * 0.05) + 'px;right:' + (pw * 0.05) + 'px;height:' + logoH + 'px;width:auto;';
-    }
-    canvas.appendChild(logoImg);
-
-    preview.appendChild(header);
-    preview.appendChild(canvas);
-    grid.appendChild(preview);
+  ads.forEach(ad => {
+    const scale = Math.min(MAX_PREVIEW_W / ad.size.w, 1, 320 / ad.size.h);
+    const card = renderAdCard(ad, scale);
+    grid.appendChild(card);
   });
 }
 
+// ───────────────────────── Single ad card ─────────────────────────
+
+function renderAdCard(ad, scale) {
+  const card = document.createElement('div');
+  card.className = 'ad-card';
+
+  const header = document.createElement('div');
+  header.className = 'ad-card-header';
+  const l = document.createElement('span');
+  l.textContent = ad.size.name;
+  const r = document.createElement('span');
+  r.textContent = 'photo ' + (ad.photo.idx + 1) + ' • ' + ad.photo.orient.slice(0, 4);
+  header.appendChild(l);
+  header.appendChild(r);
+  card.appendChild(header);
+
+  const canvas = renderAdCanvas(ad, scale);
+  card.appendChild(canvas);
+  return card;
+}
+
+function renderAdCanvas(ad, scale) {
+  const pw = Math.round(ad.size.w * scale);
+  const ph = Math.round(ad.size.h * scale);
+
+  const canvas = document.createElement('div');
+  canvas.className = 'ad-canvas';
+  canvas.style.cssText = 'width:' + pw + 'px;height:' + ph + 'px;position:relative;overflow:hidden;background:var(--cream);';
+  canvas.dataset.realW = ad.size.w;
+  canvas.dataset.realH = ad.size.h;
+
+  // Photo (with focal-point object-position)
+  const bg = document.createElement('img');
+  bg.src = ad.photo.src;
+  bg.crossOrigin = 'anonymous';
+  bg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;' +
+    'object-position:' + ad.photo.focal.x + '% ' + ad.photo.focal.y + '%;';
+  canvas.appendChild(bg);
+
+  // Overlay
+  if (ad.overlay === 'warm-tint') {
+    const o = document.createElement('div');
+    o.style.cssText = 'position:absolute;inset:0;background:rgba(245,240,232,0.18);pointer-events:none;';
+    canvas.appendChild(o);
+  } else if (ad.overlay === 'bottom-fade') {
+    const o = document.createElement('div');
+    o.style.cssText = 'position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(54,47,40,0.55) 100%);pointer-events:none;';
+    canvas.appendChild(o);
+  } else if (ad.overlay === 'top-fade') {
+    const o = document.createElement('div');
+    o.style.cssText = 'position:absolute;inset:0;background:linear-gradient(to bottom,rgba(54,47,40,0.55) 0%,transparent 50%);pointer-events:none;';
+    canvas.appendChild(o);
+  }
+
+  // Text layer — delegate by layout
+  const layout = ad.size.layout;
+  const layers = LAYOUT_RENDERERS[layout](ad, pw, ph);
+  layers.forEach(el => canvas.appendChild(el));
+
+  return canvas;
+}
+
+// ───────────────────────── Layout renderers ─────────────────────────
+
+function textColorFor(treatment) {
+  switch (treatment) {
+    case 'espresso': return '#574A3F';
+    case 'cream':    return '#F5F0E8';
+    case 'tan':      return '#B79D85';
+    case 'auto':     return '#574A3F';  // TODO: sample photo luminance
+    default:         return '#574A3F';
+  }
+}
+
+function makeHeadline(text, color, fontSize, letterSpacing) {
+  const el = document.createElement('div');
+  el.style.cssText = 'font-family: var(--font-headline); ' +
+    'font-size:' + fontSize + 'px; ' +
+    'line-height:1.02; ' +
+    'font-weight:400; ' +
+    'letter-spacing:' + (letterSpacing || '0.02em') + '; ' +
+    'color:' + color + '; ' +
+    'text-transform:lowercase;';
+  text.split('\n').forEach((line, i) => {
+    if (i > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
+  return el;
+}
+
+function makeLabel(text, color, size, spacing) {
+  const el = document.createElement('div');
+  el.style.cssText = 'font-family: var(--font-sans); ' +
+    'font-size:' + size + 'px; ' +
+    'font-weight:600; ' +
+    'letter-spacing:' + (spacing || '0.18em') + '; ' +
+    'text-transform:uppercase; ' +
+    'color:' + color + ';';
+  el.textContent = text;
+  return el;
+}
+
+function makeBody(text, color, size) {
+  const el = document.createElement('div');
+  el.style.cssText = 'font-family: var(--font-sans); ' +
+    'font-size:' + size + 'px; ' +
+    'line-height:1.35; ' +
+    'font-weight:400; ' +
+    'color:' + color + ';';
+  text.split('\n').forEach((line, i) => {
+    if (i > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
+  return el;
+}
+
+function makeLogo(variant, height, filterDrop) {
+  const img = document.createElement('img');
+  img.src = 'assets/logos/logo-' + variant + '.png';
+  img.crossOrigin = 'anonymous';
+  img.style.cssText = 'height:' + height + 'px;width:auto;display:block;' +
+    (filterDrop ? 'filter:drop-shadow(0 1px 2px rgba(54,47,40,0.18));' : '');
+  return img;
+}
+
+// All layouts return an array of absolutely-positioned DOM elements
+
+const LAYOUT_RENDERERS = {
+
+  // RECT: 300x250, 336x280, 1200x628 — logo top-left, headline bottom-left, subtitle top-right
+  rect: (ad, pw, ph) => {
+    const color = textColorFor(ad.treatment);
+    const pad = Math.max(10, Math.round(pw * 0.045));
+    const base = Math.min(pw, ph);
+    const headlineSize = Math.round(base * 0.13);
+    const subtitleSize = Math.max(7, Math.round(base * 0.035));
+    const bodySize = Math.max(7, Math.round(base * 0.04));
+    const logoH = Math.max(14, Math.round(base * 0.11));
+
+    const headlineWrap = document.createElement('div');
+    headlineWrap.style.cssText = 'position:absolute;left:' + pad + 'px;bottom:' + pad + 'px;right:' + pad + 'px;z-index:2;';
+    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.01em'));
+    if (ad.body) {
+      const body = makeBody(ad.body, color, bodySize);
+      body.style.marginTop = Math.round(headlineSize * 0.25) + 'px';
+      body.style.opacity = '0.8';
+      headlineWrap.appendChild(body);
+    }
+
+    const subWrap = document.createElement('div');
+    subWrap.style.cssText = 'position:absolute;top:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:right;';
+    if (ad.subtitle) subWrap.appendChild(makeLabel(ad.subtitle, color, subtitleSize, '0.18em'));
+
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:' + pad + 'px;z-index:3;';
+    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+
+    return [headlineWrap, subWrap, logoWrap];
+  },
+
+  // SQUARE: 1080x1080 — headline center, logo top, subtitle bottom
+  square: (ad, pw, ph) => {
+    const color = textColorFor(ad.treatment);
+    const pad = Math.round(pw * 0.06);
+    const headlineSize = Math.round(pw * 0.11);
+    const subtitleSize = Math.round(pw * 0.025);
+    const bodySize = Math.round(pw * 0.03);
+    const logoH = Math.round(pw * 0.08);
+
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:50%;transform:translateX(-50%);z-index:3;';
+    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+
+    const headlineWrap = document.createElement('div');
+    headlineWrap.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;text-align:center;width:80%;';
+    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.02em'));
+
+    const bottomWrap = document.createElement('div');
+    bottomWrap.style.cssText = 'position:absolute;bottom:' + pad + 'px;left:0;right:0;text-align:center;z-index:2;';
+    if (ad.subtitle) {
+      const lbl = makeLabel(ad.subtitle, color, subtitleSize, '0.22em');
+      bottomWrap.appendChild(lbl);
+    }
+    if (ad.body) {
+      const body = makeBody(ad.body, color, bodySize);
+      body.style.marginTop = '6px';
+      body.style.opacity = '0.8';
+      bottomWrap.appendChild(body);
+    }
+
+    return [logoWrap, headlineWrap, bottomWrap];
+  },
+
+  // TALL: 160x600, 300x600, 1080x1920 — logo top, headline upper-mid, body lower-mid
+  tall: (ad, pw, ph) => {
+    const color = textColorFor(ad.treatment);
+    const pad = Math.max(8, Math.round(pw * 0.08));
+    const base = pw;
+    const headlineSize = Math.round(base * 0.17);
+    const subtitleSize = Math.max(6, Math.round(base * 0.055));
+    const bodySize = Math.max(7, Math.round(base * 0.065));
+    const logoH = Math.max(14, Math.round(base * 0.18));
+
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:50%;transform:translateX(-50%);z-index:3;';
+    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+
+    const headlineWrap = document.createElement('div');
+    headlineWrap.style.cssText = 'position:absolute;top:' + (pad + logoH + pad) + 'px;left:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:center;';
+    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.01em'));
+    if (ad.subtitle) {
+      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.16em');
+      sub.style.marginTop = Math.round(headlineSize * 0.35) + 'px';
+      sub.style.opacity = '0.85';
+      headlineWrap.appendChild(sub);
+    }
+
+    if (ad.body) {
+      const bodyWrap = document.createElement('div');
+      bodyWrap.style.cssText = 'position:absolute;bottom:' + pad + 'px;left:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:center;';
+      const body = makeBody(ad.body, color, bodySize);
+      body.style.opacity = '0.85';
+      bodyWrap.appendChild(body);
+      return [logoWrap, headlineWrap, bodyWrap];
+    }
+
+    return [logoWrap, headlineWrap];
+  },
+
+  // LEADERBOARD: 728x90, 970x90 — logo left, stacked text right
+  leaderbd: (ad, pw, ph) => {
+    const color = textColorFor(ad.treatment);
+    const pad = Math.max(6, Math.round(ph * 0.12));
+    const headlineSize = Math.round(ph * 0.42);
+    const subtitleSize = Math.max(7, Math.round(ph * 0.12));
+    const bodySize = Math.max(7, Math.round(ph * 0.15));
+    const logoH = Math.round(ph * 0.55);
+    const logoAreaW = Math.round(pw * 0.16);
+
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = 'position:absolute;left:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:3;width:' + logoAreaW + 'px;display:flex;align-items:center;';
+    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:absolute;left:' + (pad + logoAreaW + pad) + 'px;right:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:2;';
+    textWrap.appendChild(makeHeadline(ad.headline.replace(/\n/g, ' '), color, headlineSize, '0.01em'));
+    if (ad.body) {
+      const body = makeBody(ad.body.replace(/\n/g, ' '), color, bodySize);
+      body.style.marginTop = '2px';
+      body.style.opacity = '0.8';
+      textWrap.appendChild(body);
+    } else if (ad.subtitle) {
+      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.18em');
+      sub.style.marginTop = '2px';
+      sub.style.opacity = '0.85';
+      textWrap.appendChild(sub);
+    }
+
+    return [logoWrap, textWrap];
+  },
+
+  // MOBILE BANNER: 320x50, 320x100 — logo left, single-line headline right
+  mbanner: (ad, pw, ph) => {
+    const color = textColorFor(ad.treatment);
+    const pad = Math.max(5, Math.round(ph * 0.12));
+    const headlineSize = ph < 70 ? Math.round(ph * 0.45) : Math.round(ph * 0.32);
+    const subtitleSize = Math.max(6, Math.round(ph * 0.12));
+    const logoH = Math.round(ph * 0.55);
+    const logoAreaW = Math.round(pw * 0.2);
+
+    const logoWrap = document.createElement('div');
+    logoWrap.style.cssText = 'position:absolute;left:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:3;width:' + logoAreaW + 'px;';
+    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:absolute;left:' + (pad + logoAreaW + pad) + 'px;right:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:2;';
+    textWrap.appendChild(makeHeadline(ad.headline.replace(/\n/g, ' '), color, headlineSize, '0.01em'));
+    if (ph >= 70 && ad.subtitle) {
+      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.18em');
+      sub.style.opacity = '0.85';
+      textWrap.appendChild(sub);
+    }
+
+    return [logoWrap, textWrap];
+  },
+};
+
+// ───────────────────────── Download / export ─────────────────────────
+
 async function downloadAll() {
-  var btn = document.getElementById('dlBtn');
-  btn.textContent = 'Loading libraries...';
+  const btn = document.getElementById('dlBtn');
+  btn.disabled = true;
+  btn.textContent = 'Preparing fonts...';
 
   try {
-    // Load html2canvas
+    // Ensure fonts load before rasterizing
+    await document.fonts.ready;
+
     if (typeof html2canvas === 'undefined') {
-      await new Promise(function(resolve, reject) {
-        var script = document.createElement('script');
-        script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
       });
     }
 
-    var JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
-    var zip = new JSZip();
+    const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+    const zip = new JSZip();
 
-    var canvases = document.querySelectorAll('.ad-canvas');
-    for (var i = 0; i < canvases.length && i < generatedAds.length; i++) {
-      var ad = generatedAds[i];
-      btn.textContent = 'Rendering ' + (i + 1) + '/' + canvases.length + '...';
+    // Render each ad to a detached high-res node, then html2canvas it at full size
+    for (let i = 0; i < generatedAds.length; i++) {
+      const ad = generatedAds[i];
+      btn.textContent = 'Rendering ' + (i + 1) + ' / ' + generatedAds.length;
 
-      var rendered = await html2canvas(canvases[i], {
+      const offscreen = renderAdCanvas(ad, 1);  // scale = 1 → native size
+      offscreen.style.position = 'absolute';
+      offscreen.style.left = '-99999px';
+      offscreen.style.top = '0';
+      document.body.appendChild(offscreen);
+
+      // Wait for images inside
+      const imgs = offscreen.querySelectorAll('img');
+      await Promise.all(Array.from(imgs).map(im => im.complete ? Promise.resolve() :
+        new Promise(res => { im.onload = im.onerror = res; })));
+
+      const rendered = await html2canvas(offscreen, {
         width: ad.size.w,
         height: ad.size.h,
-        scale: ad.size.w / canvases[i].offsetWidth,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: null
+        backgroundColor: null,
+        logging: false,
       });
 
-      var blob = await new Promise(function(r) { rendered.toBlob(r, 'image/png'); });
-      var headlineSlug = ad.headline.replace(/\n/g, '-').replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().slice(0, 30);
-      zip.file(ad.size.name + '/photo' + (ad.photoIdx + 1) + '_' + headlineSlug + '.png', blob);
+      const blob = await new Promise(r => rendered.toBlob(r, 'image/png'));
+      const slug = ad.headline.replace(/\n/g, '-')
+        .replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().slice(0, 30);
+      zip.file(ad.size.name + '/photo' + (ad.photo.idx + 1) + '_' + slug + '.png', blob);
+
+      offscreen.remove();
     }
 
-    var content = await zip.generateAsync({ type: 'blob' });
-    var url = URL.createObjectURL(content);
-    var a = document.createElement('a');
+    btn.textContent = 'Zipping...';
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
     a.href = url;
-    var campaign = document.getElementById('campaignSelect').value;
+    const campaign = document.getElementById('campaignSelect').value;
     a.download = 'amansala-' + campaign + '-ads.zip';
     a.click();
     URL.revokeObjectURL(url);
@@ -383,7 +763,9 @@ async function downloadAll() {
     alert('Download failed: ' + err.message);
   }
 
-  btn.textContent = 'Download ZIP';
+  btn.disabled = false;
+  btn.textContent = 'Download Everything (ZIP)';
 }
 
+// ───────────────────────── Boot ─────────────────────────
 init();

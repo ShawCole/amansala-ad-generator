@@ -1,38 +1,23 @@
-// Amansala Ad Generator — brand-locked systematic variation engine.
-// All DOM content is rendered from application-defined data, not user HTML input.
+// Amansala Ad Generator — Canva-exact template engine.
+// Each of the 6 sizes has a hand-tuned layout matched to Paulina's Mother's Day reference ads.
+// All DOM content rendered from app-defined data, not user HTML.
 
-// ───────────────────────── Config ─────────────────────────
+// ───────────────────────── Sizes (only those with Canva references) ─────────────────────────
 
 const AD_SIZES = [
-  { w: 300,  h: 250,  name: '300x250',   cat: 'DSP',  layout: 'rect'     },
-  { w: 728,  h: 90,   name: '728x90',    cat: 'DSP',  layout: 'leaderbd' },
-  { w: 160,  h: 600,  name: '160x600',   cat: 'DSP',  layout: 'tall'     },
-  { w: 320,  h: 50,   name: '320x50',    cat: 'DSP',  layout: 'mbanner'  },
-  { w: 300,  h: 600,  name: '300x600',   cat: 'DSP',  layout: 'tall'     },
-  { w: 320,  h: 100,  name: '320x100',   cat: 'DSP',  layout: 'mbanner'  },
-  { w: 336,  h: 280,  name: '336x280',   cat: 'DSP',  layout: 'rect'     },
-  { w: 970,  h: 90,   name: '970x90',    cat: 'DSP',  layout: 'leaderbd' },
-  { w: 1080, h: 1080, name: '1080x1080', cat: 'Meta', layout: 'square'   },
-  { w: 1080, h: 1920, name: '1080x1920', cat: 'Meta', layout: 'tall'     },
-  { w: 1200, h: 628,  name: '1200x628',  cat: 'Meta', layout: 'rect'     },
+  { w: 300, h: 250, name: '300x250', layout: 'rect-250'    },
+  { w: 300, h: 600, name: '300x600', layout: 'tall-300'    },
+  { w: 728, h: 90,  name: '728x90',  layout: 'leader-728'  },
+  { w: 160, h: 600, name: '160x600', layout: 'tall-160'    },
+  { w: 320, h: 100, name: '320x100', layout: 'mbanner-100' },
+  { w: 320, h: 50,  name: '320x50',  layout: 'mbanner-50'  },
 ];
-
-// Which photo orientations work for which layout (in priority order)
-const LAYOUT_ORIENT_PREFS = {
-  rect:     ['landscape', 'square', 'portrait'],
-  leaderbd: ['landscape', 'square'],
-  tall:     ['portrait', 'square'],
-  mbanner:  ['landscape', 'square'],
-  square:   ['square', 'landscape', 'portrait'],
-};
 
 const PHOTO_COUNT = 13;
 const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({
   idx: i,
   src: 'assets/photos/' + (i + 1) + '.png',
-  orient: 'portrait',  // loaded async from actual image dimensions
-  focal: { x: 50, y: 40 },  // % — default upper-middle
-  tags: [],
+  focal: { x: 50, y: 40 },  // default: upper-middle
   w: 0,
   h: 0,
 }));
@@ -41,8 +26,7 @@ const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({
 
 let CAMPAIGNS = {};
 let selectedPhotos = new Set();
-let selectedLogo = 'black';
-let selectedTreatment = 'espresso';
+let selectedLogo = 'white';
 let generatedAds = [];
 let activeFilter = 'all';
 let taggerPhotoIdx = null;
@@ -50,12 +34,43 @@ let taggerPhotoIdx = null;
 // ───────────────────────── Init ─────────────────────────
 
 async function init() {
+  renderSizeRoster();
   await loadCampaigns();
   await loadPhotoMetadata();
   renderPhotoGrid();
   populateCampaignSelect();
   loadCampaign(Object.keys(CAMPAIGNS)[0]);
+  // Pre-load the first 3 photos as a default selection to reduce setup friction
+  [0,1,2].forEach(i => selectedPhotos.add(i));
+  renderPhotoGrid();
 }
+
+function renderSizeRoster() {
+  const roster = document.getElementById('sizeRoster');
+  roster.textContent = '';
+  AD_SIZES.forEach(s => {
+    const pill = document.createElement('div');
+    pill.className = 'size-pill';
+    const dim = document.createElement('span');
+    dim.className = 'dim';
+    dim.textContent = s.name;
+    const lbl = document.createElement('span');
+    lbl.className = 'label';
+    lbl.textContent = LAYOUT_LABELS[s.layout];
+    pill.appendChild(dim);
+    pill.appendChild(lbl);
+    roster.appendChild(pill);
+  });
+}
+
+const LAYOUT_LABELS = {
+  'rect-250':    'medium rect',
+  'tall-300':    'half page',
+  'leader-728':  'leaderboard',
+  'tall-160':    'skyscraper',
+  'mbanner-100': 'mobile large',
+  'mbanner-50':  'mobile banner',
+};
 
 async function loadCampaigns() {
   try {
@@ -79,42 +94,22 @@ function populateCampaignSelect() {
 }
 
 async function loadPhotoMetadata() {
-  // Auto-detect orientation from actual image dimensions
   await Promise.all(PHOTOS.map(p => new Promise(resolve => {
     const img = new Image();
-    img.onload = () => {
-      p.w = img.naturalWidth;
-      p.h = img.naturalHeight;
-      const ratio = p.w / p.h;
-      if (ratio > 1.2) p.orient = 'landscape';
-      else if (ratio < 0.83) p.orient = 'portrait';
-      else p.orient = 'square';
-      resolve();
-    };
+    img.onload = () => { p.w = img.naturalWidth; p.h = img.naturalHeight; resolve(); };
     img.onerror = resolve;
     img.src = p.src;
   })));
-
-  // Restore per-photo tags from localStorage
   try {
-    const saved = JSON.parse(localStorage.getItem('amansala-photo-meta') || '{}');
-    PHOTOS.forEach(p => {
-      const s = saved[p.idx];
-      if (s) {
-        if (s.orient) p.orient = s.orient;
-        if (s.focal) p.focal = s.focal;
-        if (s.tags) p.tags = s.tags;
-      }
-    });
-  } catch (e) { /* fresh start */ }
+    const saved = JSON.parse(localStorage.getItem('amansala-photo-focal') || '{}');
+    PHOTOS.forEach(p => { if (saved[p.idx]) p.focal = saved[p.idx]; });
+  } catch (e) {}
 }
 
-function savePhotoMetadata() {
+function savePhotoFocal() {
   const out = {};
-  PHOTOS.forEach(p => {
-    out[p.idx] = { orient: p.orient, focal: p.focal, tags: p.tags };
-  });
-  localStorage.setItem('amansala-photo-meta', JSON.stringify(out));
+  PHOTOS.forEach(p => { out[p.idx] = p.focal; });
+  localStorage.setItem('amansala-photo-focal', JSON.stringify(out));
 }
 
 // ───────────────────────── Photo grid ─────────────────────────
@@ -133,73 +128,49 @@ function renderPhotoGrid() {
     img.style.objectPosition = p.focal.x + '% ' + p.focal.y + '%';
     tile.appendChild(img);
 
-    const badge = document.createElement('div');
-    badge.className = 'orient-badge';
-    badge.textContent = p.orient.slice(0, 4);
-    tile.appendChild(badge);
-
     const check = document.createElement('div');
     check.className = 'tile-check';
     check.textContent = '✓';
     tile.appendChild(check);
 
-    tile.onclick = (e) => {
-      if (e.shiftKey) {
-        openTagger(p.idx);
-      } else {
-        togglePhoto(p.idx);
-      }
-    };
-    tile.oncontextmenu = (e) => {
-      e.preventDefault();
-      openTagger(p.idx);
-    };
-    tile.title = 'Click: select • Shift+click or right-click: tag';
+    const focalTag = document.createElement('div');
+    focalTag.className = 'focal-tag';
+    focalTag.textContent = '◉';
+    focalTag.title = 'Right-click to set focal point';
+    tile.appendChild(focalTag);
+
+    tile.onclick = () => togglePhoto(p.idx);
+    tile.oncontextmenu = (e) => { e.preventDefault(); openTagger(p.idx); };
+    tile.title = 'Click: select • Right-click: set focal point';
     grid.appendChild(tile);
   });
-  updatePhotoCount();
-}
-
-function updatePhotoCount() {
   document.getElementById('photoCount').textContent = selectedPhotos.size + ' selected';
 }
 
 function togglePhoto(idx) {
-  if (selectedPhotos.has(idx)) selectedPhotos.delete(idx);
-  else selectedPhotos.add(idx);
+  if (selectedPhotos.has(idx)) selectedPhotos.delete(idx); else selectedPhotos.add(idx);
   renderPhotoGrid();
 }
+function selectAllPhotos() { PHOTOS.forEach(p => selectedPhotos.add(p.idx)); renderPhotoGrid(); }
+function clearPhotos() { selectedPhotos.clear(); renderPhotoGrid(); }
 
-function selectAllPhotos() {
-  PHOTOS.forEach(p => selectedPhotos.add(p.idx));
-  renderPhotoGrid();
-}
-
-function selectByOrient(orient) {
-  selectedPhotos.clear();
-  PHOTOS.forEach(p => { if (p.orient === orient) selectedPhotos.add(p.idx); });
-  renderPhotoGrid();
-}
-
-// ───────────────────────── Photo tagger ─────────────────────────
+// ───────────────────────── Focal tagger ─────────────────────────
 
 function openTagger(idx) {
   taggerPhotoIdx = idx;
   const p = PHOTOS[idx];
   document.getElementById('taggerImg').src = p.src;
-  document.getElementById('taggerOrient').value = p.orient;
-  document.getElementById('taggerTags').value = p.tags.join(', ');
   const dot = document.getElementById('focalDot');
   dot.style.left = p.focal.x + '%';
   dot.style.top = p.focal.y + '%';
+  dot.dataset.x = p.focal.x;
+  dot.dataset.y = p.focal.y;
   document.getElementById('taggerOverlay').classList.add('active');
 }
-
 function closeTagger() {
   document.getElementById('taggerOverlay').classList.remove('active');
   taggerPhotoIdx = null;
 }
-
 function setFocal(e) {
   const rect = e.currentTarget.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -210,24 +181,18 @@ function setFocal(e) {
   dot.dataset.x = x;
   dot.dataset.y = y;
 }
-
 function saveTagger() {
   if (taggerPhotoIdx === null) return;
   const p = PHOTOS[taggerPhotoIdx];
   const dot = document.getElementById('focalDot');
-  const x = parseFloat(dot.dataset.x);
-  const y = parseFloat(dot.dataset.y);
-  if (!isNaN(x)) p.focal.x = x;
-  if (!isNaN(y)) p.focal.y = y;
-  p.orient = document.getElementById('taggerOrient').value;
-  p.tags = document.getElementById('taggerTags').value
-    .split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-  savePhotoMetadata();
+  p.focal.x = parseFloat(dot.dataset.x) || 50;
+  p.focal.y = parseFloat(dot.dataset.y) || 40;
+  savePhotoFocal();
   renderPhotoGrid();
   closeTagger();
 }
 
-// ───────────────────────── Headlines / campaign ─────────────────────────
+// ───────────────────────── Campaign ─────────────────────────
 
 function loadCampaign(name) {
   const c = CAMPAIGNS[name];
@@ -235,8 +200,9 @@ function loadCampaign(name) {
   const list = document.getElementById('headlineList');
   list.textContent = '';
   c.headlines.forEach(h => addHeadline(h));
-  document.getElementById('subtitleInput').value = c.subtitle || '';
-  document.getElementById('bodyInput').value = c.body || '';
+  // The reference ads use a single subtitle block — combine subtitle + body for editing
+  const combined = [c.body || c.subtitle].filter(Boolean).join('\n');
+  document.getElementById('subtitleInput').value = combined;
 }
 
 function addHeadline(text) {
@@ -261,12 +227,6 @@ function selectLogo(el) {
   selectedLogo = el.dataset.logo;
 }
 
-function selectTreatment(el) {
-  document.querySelectorAll('.treatment-opt').forEach(o => o.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedTreatment = el.dataset.treatment;
-}
-
 // ───────────────────────── Custom font upload ─────────────────────────
 
 function loadCustomFont(input) {
@@ -277,22 +237,7 @@ function loadCustomFont(input) {
   font.load().then(f => {
     document.fonts.add(f);
     alert('Custom headline font loaded. Re-generate to apply.');
-  }).catch(err => {
-    alert('Font load failed: ' + err.message);
-  });
-}
-
-// ───────────────────────── Photo-to-size compatibility ─────────────────────────
-
-function pickCompatiblePhotos(size) {
-  const prefs = LAYOUT_ORIENT_PREFS[size.layout];
-  const selected = Array.from(selectedPhotos).map(i => PHOTOS[i]);
-  const matches = [];
-  for (const orient of prefs) {
-    const ofType = selected.filter(p => p.orient === orient);
-    matches.push(...ofType);
-  }
-  return matches.length ? matches : selected;
+  }).catch(err => alert('Font load failed: ' + err.message));
 }
 
 // ───────────────────────── Generation ─────────────────────────
@@ -309,15 +254,13 @@ function generateAds() {
   if (headlines.length === 0) { alert('Add at least one headline'); return; }
 
   const subtitle = document.getElementById('subtitleInput').value;
-  const body = document.getElementById('bodyInput').value;
-  const overlay = document.getElementById('overlaySelect').value;
+  const photos = Array.from(selectedPhotos).map(i => PHOTOS[i]);
 
   generatedAds = [];
-  AD_SIZES.forEach(size => {
-    const photos = pickCompatiblePhotos(size);
-    photos.forEach(photo => {
-      headlines.forEach(headline => {
-        generatedAds.push(buildAd({ photo, headline, subtitle, body, size, overlay }));
+  photos.forEach(photo => {
+    headlines.forEach(headline => {
+      AD_SIZES.forEach(size => {
+        generatedAds.push({ photo, headline, subtitle, size, logo: selectedLogo });
       });
     });
   });
@@ -325,25 +268,7 @@ function generateAds() {
   renderPreviews();
 }
 
-function generateFullMatrix() {
-  if (selectedPhotos.size === 0) { selectAllPhotos(); }
-  generateAds();
-}
-
-function buildAd({ photo, headline, subtitle, body, size, overlay }) {
-  return {
-    photo,
-    headline,
-    subtitle,
-    body,
-    size,
-    overlay,
-    treatment: selectedTreatment,
-    logo: selectedLogo,
-  };
-}
-
-// ───────────────────────── Rendering ─────────────────────────
+// ───────────────────────── Preview shell ─────────────────────────
 
 function renderPreviews() {
   document.getElementById('emptyState').style.display = 'none';
@@ -377,17 +302,10 @@ function renderPreviews() {
     const btn = document.createElement('button');
     btn.className = 'size-filter' + (name === activeFilter ? ' active' : '');
     btn.textContent = name;
-    btn.onclick = () => filterBy(name, btn);
+    btn.onclick = () => { activeFilter = name; renderPreviews(); };
     filters.appendChild(btn);
   });
 
-  renderGrid();
-}
-
-function filterBy(name, btn) {
-  activeFilter = name;
-  document.querySelectorAll('.size-filter').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
   renderGrid();
 }
 
@@ -395,35 +313,28 @@ function renderGrid() {
   const grid = document.getElementById('previewGrid');
   grid.textContent = '';
   const ads = activeFilter === 'all' ? generatedAds : generatedAds.filter(a => a.size.name === activeFilter);
-  const MAX_PREVIEW_W = 320;
-
-  ads.forEach(ad => {
-    const scale = Math.min(MAX_PREVIEW_W / ad.size.w, 1, 320 / ad.size.h);
-    const card = renderAdCard(ad, scale);
-    grid.appendChild(card);
-  });
+  ads.forEach(ad => grid.appendChild(renderAdCard(ad)));
 }
 
-// ───────────────────────── Single ad card ─────────────────────────
-
-function renderAdCard(ad, scale) {
+function renderAdCard(ad) {
   const card = document.createElement('div');
   card.className = 'ad-card';
-
   const header = document.createElement('div');
   header.className = 'ad-card-header';
   const l = document.createElement('span');
   l.textContent = ad.size.name;
   const r = document.createElement('span');
-  r.textContent = 'photo ' + (ad.photo.idx + 1) + ' • ' + ad.photo.orient.slice(0, 4);
+  r.textContent = 'photo ' + (ad.photo.idx + 1);
   header.appendChild(l);
   header.appendChild(r);
   card.appendChild(header);
 
-  const canvas = renderAdCanvas(ad, scale);
-  card.appendChild(canvas);
+  const scale = Math.min(320 / ad.size.w, 420 / ad.size.h, 1);
+  card.appendChild(renderAdCanvas(ad, scale));
   return card;
 }
+
+// ───────────────────────── Canvas / ad rendering ─────────────────────────
 
 function renderAdCanvas(ad, scale) {
   const pw = Math.round(ad.size.w * scale);
@@ -431,11 +342,11 @@ function renderAdCanvas(ad, scale) {
 
   const canvas = document.createElement('div');
   canvas.className = 'ad-canvas';
-  canvas.style.cssText = 'width:' + pw + 'px;height:' + ph + 'px;position:relative;overflow:hidden;background:var(--cream);';
+  canvas.style.cssText = 'width:' + pw + 'px;height:' + ph + 'px;position:relative;overflow:hidden;background:#574A3F;';
   canvas.dataset.realW = ad.size.w;
   canvas.dataset.realH = ad.size.h;
 
-  // Photo (with focal-point object-position)
+  // Background photo
   const bg = document.createElement('img');
   bg.src = ad.photo.src;
   bg.crossOrigin = 'anonymous';
@@ -443,50 +354,31 @@ function renderAdCanvas(ad, scale) {
     'object-position:' + ad.photo.focal.x + '% ' + ad.photo.focal.y + '%;';
   canvas.appendChild(bg);
 
-  // Overlay
-  if (ad.overlay === 'warm-tint') {
-    const o = document.createElement('div');
-    o.style.cssText = 'position:absolute;inset:0;background:rgba(245,240,232,0.18);pointer-events:none;';
-    canvas.appendChild(o);
-  } else if (ad.overlay === 'bottom-fade') {
-    const o = document.createElement('div');
-    o.style.cssText = 'position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(54,47,40,0.55) 100%);pointer-events:none;';
-    canvas.appendChild(o);
-  } else if (ad.overlay === 'top-fade') {
-    const o = document.createElement('div');
-    o.style.cssText = 'position:absolute;inset:0;background:linear-gradient(to bottom,rgba(54,47,40,0.55) 0%,transparent 50%);pointer-events:none;';
-    canvas.appendChild(o);
-  }
+  // Very subtle warm-cream tint to match the warmth of the Canva references
+  // without reading as a "dark overlay"
+  const tint = document.createElement('div');
+  tint.style.cssText = 'position:absolute;inset:0;background:rgba(87,74,63,0.12);pointer-events:none;';
+  canvas.appendChild(tint);
 
-  // Text layer — delegate by layout
-  const layout = ad.size.layout;
-  const layers = LAYOUT_RENDERERS[layout](ad, pw, ph);
-  layers.forEach(el => canvas.appendChild(el));
+  const layout = LAYOUTS[ad.size.layout];
+  layout(ad, canvas, pw, ph, scale);
 
   return canvas;
 }
 
-// ───────────────────────── Layout renderers ─────────────────────────
+// ───────────────────────── Text building helpers ─────────────────────────
 
-function textColorFor(treatment) {
-  switch (treatment) {
-    case 'espresso': return '#574A3F';
-    case 'cream':    return '#F5F0E8';
-    case 'tan':      return '#B79D85';
-    case 'auto':     return '#574A3F';  // TODO: sample photo luminance
-    default:         return '#574A3F';
-  }
-}
-
-function makeHeadline(text, color, fontSize, letterSpacing) {
+// Render headline text with automatic styling: display serif, cream color, lowercase, tight line-height
+function headlineEl(text, sizePx, color, alignment) {
   const el = document.createElement('div');
   el.style.cssText = 'font-family: var(--font-headline); ' +
-    'font-size:' + fontSize + 'px; ' +
-    'line-height:1.02; ' +
+    'font-size:' + sizePx + 'px; ' +
+    'line-height:0.95; ' +
     'font-weight:400; ' +
-    'letter-spacing:' + (letterSpacing || '0.02em') + '; ' +
+    'letter-spacing:-0.005em; ' +
     'color:' + color + '; ' +
-    'text-transform:lowercase;';
+    'text-transform:lowercase; ' +
+    'text-align:' + (alignment || 'left') + ';';
   text.split('\n').forEach((line, i) => {
     if (i > 0) el.appendChild(document.createElement('br'));
     el.appendChild(document.createTextNode(line));
@@ -494,200 +386,182 @@ function makeHeadline(text, color, fontSize, letterSpacing) {
   return el;
 }
 
-function makeLabel(text, color, size, spacing) {
+// Subtitle: sans-serif with bold emphasis on numbers/$ and the word "Tulum"
+function subtitleEl(text, sizePx, color, alignment) {
   const el = document.createElement('div');
   el.style.cssText = 'font-family: var(--font-sans); ' +
-    'font-size:' + size + 'px; ' +
-    'font-weight:600; ' +
-    'letter-spacing:' + (spacing || '0.18em') + '; ' +
-    'text-transform:uppercase; ' +
-    'color:' + color + ';';
-  el.textContent = text;
-  return el;
-}
-
-function makeBody(text, color, size) {
-  const el = document.createElement('div');
-  el.style.cssText = 'font-family: var(--font-sans); ' +
-    'font-size:' + size + 'px; ' +
-    'line-height:1.35; ' +
+    'font-size:' + sizePx + 'px; ' +
+    'line-height:1.25; ' +
     'font-weight:400; ' +
-    'color:' + color + ';';
+    'color:' + color + '; ' +
+    'text-align:' + (alignment || 'left') + ';';
+  // Auto-bold: monetary ($500), numbers, and "Tulum"
   text.split('\n').forEach((line, i) => {
     if (i > 0) el.appendChild(document.createElement('br'));
-    el.appendChild(document.createTextNode(line));
+    const parts = line.split(/(\$?\d+\$?|Tulum|tulum|TULUM)/g);
+    parts.forEach(part => {
+      if (!part) return;
+      if (/^\$?\d+\$?$/.test(part) || /tulum/i.test(part)) {
+        const b = document.createElement('strong');
+        b.style.fontWeight = '800';
+        b.textContent = part;
+        el.appendChild(b);
+      } else {
+        el.appendChild(document.createTextNode(part));
+      }
+    });
   });
   return el;
 }
 
-function makeLogo(variant, height, filterDrop) {
+function logoEl(variant, heightPx) {
   const img = document.createElement('img');
   img.src = 'assets/logos/logo-' + variant + '.png';
   img.crossOrigin = 'anonymous';
-  img.style.cssText = 'height:' + height + 'px;width:auto;display:block;' +
-    (filterDrop ? 'filter:drop-shadow(0 1px 2px rgba(54,47,40,0.18));' : '');
+  img.style.cssText = 'height:' + heightPx + 'px;width:auto;display:block;';
   return img;
 }
 
-// All layouts return an array of absolutely-positioned DOM elements
+const CREAM = '#F5F0E8';
 
-const LAYOUT_RENDERERS = {
+// ───────────────────────── 6 hand-tuned layouts ─────────────────────────
+// All sized at SCALE (1=native). Preview uses proportional scale.
 
-  // RECT: 300x250, 336x280, 1200x628 — logo top-left, headline bottom-left, subtitle top-right
-  rect: (ad, pw, ph) => {
-    const color = textColorFor(ad.treatment);
-    const pad = Math.max(10, Math.round(pw * 0.045));
-    const base = Math.min(pw, ph);
-    const headlineSize = Math.round(base * 0.13);
-    const subtitleSize = Math.max(7, Math.round(base * 0.035));
-    const bodySize = Math.max(7, Math.round(base * 0.04));
-    const logoH = Math.max(14, Math.round(base * 0.11));
+const LAYOUTS = {
 
-    const headlineWrap = document.createElement('div');
-    headlineWrap.style.cssText = 'position:absolute;left:' + pad + 'px;bottom:' + pad + 'px;right:' + pad + 'px;z-index:2;';
-    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.01em'));
-    if (ad.body) {
-      const body = makeBody(ad.body, color, bodySize);
-      body.style.marginTop = Math.round(headlineSize * 0.25) + 'px';
-      body.style.opacity = '0.8';
-      headlineWrap.appendChild(body);
-    }
+  // 300x250 — logo top-left, subtitle top-right, headline bottom
+  'rect-250': (ad, canvas, pw, ph, s) => {
+    const logoH = Math.round(70 * s);
+    const padT = Math.round(12 * s);
+    const padL = Math.round(12 * s);
+    const padR = Math.round(12 * s);
+    const padB = Math.round(10 * s);
 
-    const subWrap = document.createElement('div');
-    subWrap.style.cssText = 'position:absolute;top:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:right;';
-    if (ad.subtitle) subWrap.appendChild(makeLabel(ad.subtitle, color, subtitleSize, '0.18em'));
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;top:' + padT + 'px;left:' + padL + 'px;z-index:3;';
+    canvas.appendChild(logo);
 
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:' + pad + 'px;z-index:3;';
-    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+    const subH = Math.round(13 * s);
+    const sub = subtitleEl(ad.subtitle, subH, CREAM, 'right');
+    sub.style.cssText += 'position:absolute;top:' + padT + 'px;right:' + padR + 'px;z-index:2;width:' + Math.round(165 * s) + 'px;';
+    canvas.appendChild(sub);
 
-    return [headlineWrap, subWrap, logoWrap];
+    const headH = Math.round(42 * s);
+    const head = headlineEl(ad.headline, headH, CREAM, 'left');
+    head.style.cssText += 'position:absolute;bottom:' + padB + 'px;left:' + padL + 'px;right:' + padR + 'px;z-index:2;';
+    canvas.appendChild(head);
   },
 
-  // SQUARE: 1080x1080 — headline center, logo top, subtitle bottom
-  square: (ad, pw, ph) => {
-    const color = textColorFor(ad.treatment);
-    const pad = Math.round(pw * 0.06);
-    const headlineSize = Math.round(pw * 0.11);
-    const subtitleSize = Math.round(pw * 0.025);
-    const bodySize = Math.round(pw * 0.03);
-    const logoH = Math.round(pw * 0.08);
+  // 300x600 — headline top, subtitle mid, photo middle, logo bottom center
+  'tall-300': (ad, canvas, pw, ph, s) => {
+    const padX = Math.round(20 * s);
+    const padT = Math.round(20 * s);
+    const padB = Math.round(20 * s);
 
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:50%;transform:translateX(-50%);z-index:3;';
-    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+    const headH = Math.round(48 * s);
+    const head = headlineEl(ad.headline, headH, CREAM, 'center');
+    head.style.cssText += 'position:absolute;top:' + padT + 'px;left:' + padX + 'px;right:' + padX + 'px;z-index:2;';
+    canvas.appendChild(head);
 
-    const headlineWrap = document.createElement('div');
-    headlineWrap.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;text-align:center;width:80%;';
-    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.02em'));
+    const subH = Math.round(17 * s);
+    const sub = subtitleEl(ad.subtitle, subH, CREAM, 'center');
+    sub.style.cssText += 'position:absolute;top:' + Math.round(200 * s) + 'px;left:' + padX + 'px;right:' + padX + 'px;z-index:2;';
+    canvas.appendChild(sub);
 
-    const bottomWrap = document.createElement('div');
-    bottomWrap.style.cssText = 'position:absolute;bottom:' + pad + 'px;left:0;right:0;text-align:center;z-index:2;';
-    if (ad.subtitle) {
-      const lbl = makeLabel(ad.subtitle, color, subtitleSize, '0.22em');
-      bottomWrap.appendChild(lbl);
-    }
-    if (ad.body) {
-      const body = makeBody(ad.body, color, bodySize);
-      body.style.marginTop = '6px';
-      body.style.opacity = '0.8';
-      bottomWrap.appendChild(body);
-    }
-
-    return [logoWrap, headlineWrap, bottomWrap];
+    const logoH = Math.round(80 * s);
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;bottom:' + padB + 'px;left:50%;transform:translateX(-50%);z-index:3;';
+    canvas.appendChild(logo);
   },
 
-  // TALL: 160x600, 300x600, 1080x1920 — logo top, headline upper-mid, body lower-mid
-  tall: (ad, pw, ph) => {
-    const color = textColorFor(ad.treatment);
-    const pad = Math.max(8, Math.round(pw * 0.08));
-    const base = pw;
-    const headlineSize = Math.round(base * 0.17);
-    const subtitleSize = Math.max(6, Math.round(base * 0.055));
-    const bodySize = Math.max(7, Math.round(base * 0.065));
-    const logoH = Math.max(14, Math.round(base * 0.18));
+  // 728x90 — logo left, headline+subtitle stacked right
+  'leader-728': (ad, canvas, pw, ph, s) => {
+    const padX = Math.round(18 * s);
+    const logoH = Math.round(56 * s);
+    const logoAreaW = Math.round(120 * s);
 
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = 'position:absolute;top:' + pad + 'px;left:50%;transform:translateX(-50%);z-index:3;';
-    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;left:' + padX + 'px;top:50%;transform:translateY(-50%);z-index:3;';
+    canvas.appendChild(logo);
 
-    const headlineWrap = document.createElement('div');
-    headlineWrap.style.cssText = 'position:absolute;top:' + (pad + logoH + pad) + 'px;left:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:center;';
-    headlineWrap.appendChild(makeHeadline(ad.headline, color, headlineSize, '0.01em'));
-    if (ad.subtitle) {
-      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.16em');
-      sub.style.marginTop = Math.round(headlineSize * 0.35) + 'px';
-      sub.style.opacity = '0.85';
-      headlineWrap.appendChild(sub);
-    }
+    const textLeft = padX + logoAreaW + Math.round(10 * s);
+    const headH = Math.round(34 * s);
+    const subH = Math.round(14 * s);
+    const flattenedHead = ad.headline.replace(/\n/g, ' ');
+    const flattenedSub = ad.subtitle.replace(/\n/g, ' ');
 
-    if (ad.body) {
-      const bodyWrap = document.createElement('div');
-      bodyWrap.style.cssText = 'position:absolute;bottom:' + pad + 'px;left:' + pad + 'px;right:' + pad + 'px;z-index:2;text-align:center;';
-      const body = makeBody(ad.body, color, bodySize);
-      body.style.opacity = '0.85';
-      bodyWrap.appendChild(body);
-      return [logoWrap, headlineWrap, bodyWrap];
-    }
-
-    return [logoWrap, headlineWrap];
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;left:' + textLeft + 'px;right:' + padX + 'px;top:50%;transform:translateY(-50%);z-index:2;';
+    const head = headlineEl(flattenedHead, headH, CREAM, 'left');
+    wrap.appendChild(head);
+    const sub = subtitleEl(flattenedSub, subH, CREAM, 'left');
+    sub.style.marginTop = Math.round(2 * s) + 'px';
+    wrap.appendChild(sub);
+    canvas.appendChild(wrap);
   },
 
-  // LEADERBOARD: 728x90, 970x90 — logo left, stacked text right
-  leaderbd: (ad, pw, ph) => {
-    const color = textColorFor(ad.treatment);
-    const pad = Math.max(6, Math.round(ph * 0.12));
-    const headlineSize = Math.round(ph * 0.42);
-    const subtitleSize = Math.max(7, Math.round(ph * 0.12));
-    const bodySize = Math.max(7, Math.round(ph * 0.15));
-    const logoH = Math.round(ph * 0.55);
-    const logoAreaW = Math.round(pw * 0.16);
+  // 160x600 — headline top, subtitle mid, logo bottom
+  'tall-160': (ad, canvas, pw, ph, s) => {
+    const padX = Math.round(10 * s);
+    const padT = Math.round(14 * s);
+    const padB = Math.round(16 * s);
 
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = 'position:absolute;left:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:3;width:' + logoAreaW + 'px;display:flex;align-items:center;';
-    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+    const headH = Math.round(22 * s);
+    const head = headlineEl(ad.headline, headH, CREAM, 'center');
+    head.style.cssText += 'position:absolute;top:' + padT + 'px;left:' + padX + 'px;right:' + padX + 'px;z-index:2;';
+    canvas.appendChild(head);
 
-    const textWrap = document.createElement('div');
-    textWrap.style.cssText = 'position:absolute;left:' + (pad + logoAreaW + pad) + 'px;right:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:2;';
-    textWrap.appendChild(makeHeadline(ad.headline.replace(/\n/g, ' '), color, headlineSize, '0.01em'));
-    if (ad.body) {
-      const body = makeBody(ad.body.replace(/\n/g, ' '), color, bodySize);
-      body.style.marginTop = '2px';
-      body.style.opacity = '0.8';
-      textWrap.appendChild(body);
-    } else if (ad.subtitle) {
-      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.18em');
-      sub.style.marginTop = '2px';
-      sub.style.opacity = '0.85';
-      textWrap.appendChild(sub);
-    }
+    const subH = Math.round(11 * s);
+    const sub = subtitleEl(ad.subtitle, subH, CREAM, 'center');
+    sub.style.cssText += 'position:absolute;top:' + Math.round(135 * s) + 'px;left:' + padX + 'px;right:' + padX + 'px;z-index:2;line-height:1.3;';
+    canvas.appendChild(sub);
 
-    return [logoWrap, textWrap];
+    const logoH = Math.round(44 * s);
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;bottom:' + padB + 'px;left:50%;transform:translateX(-50%);z-index:3;';
+    canvas.appendChild(logo);
   },
 
-  // MOBILE BANNER: 320x50, 320x100 — logo left, single-line headline right
-  mbanner: (ad, pw, ph) => {
-    const color = textColorFor(ad.treatment);
-    const pad = Math.max(5, Math.round(ph * 0.12));
-    const headlineSize = ph < 70 ? Math.round(ph * 0.45) : Math.round(ph * 0.32);
-    const subtitleSize = Math.max(6, Math.round(ph * 0.12));
-    const logoH = Math.round(ph * 0.55);
-    const logoAreaW = Math.round(pw * 0.2);
+  // 320x100 — logo left, subtitle top-right, headline bottom-right
+  'mbanner-100': (ad, canvas, pw, ph, s) => {
+    const padX = Math.round(10 * s);
+    const padT = Math.round(8 * s);
+    const padB = Math.round(8 * s);
+    const logoAreaW = Math.round(90 * s);
 
-    const logoWrap = document.createElement('div');
-    logoWrap.style.cssText = 'position:absolute;left:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:3;width:' + logoAreaW + 'px;';
-    logoWrap.appendChild(makeLogo(ad.logo, logoH, true));
+    const logoH = Math.round(58 * s);
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;left:' + padX + 'px;top:50%;transform:translateY(-50%);z-index:3;';
+    canvas.appendChild(logo);
 
-    const textWrap = document.createElement('div');
-    textWrap.style.cssText = 'position:absolute;left:' + (pad + logoAreaW + pad) + 'px;right:' + pad + 'px;top:50%;transform:translateY(-50%);z-index:2;';
-    textWrap.appendChild(makeHeadline(ad.headline.replace(/\n/g, ' '), color, headlineSize, '0.01em'));
-    if (ph >= 70 && ad.subtitle) {
-      const sub = makeLabel(ad.subtitle, color, subtitleSize, '0.18em');
-      sub.style.opacity = '0.85';
-      textWrap.appendChild(sub);
-    }
+    const textLeft = padX + logoAreaW + Math.round(8 * s);
 
-    return [logoWrap, textWrap];
+    const subH = Math.round(11 * s);
+    const sub = subtitleEl(ad.subtitle, subH, CREAM, 'right');
+    sub.style.cssText += 'position:absolute;top:' + padT + 'px;left:' + textLeft + 'px;right:' + padX + 'px;z-index:2;line-height:1.22;';
+    canvas.appendChild(sub);
+
+    const headH = Math.round(20 * s);
+    const head = headlineEl(ad.headline, headH, CREAM, 'right');
+    head.style.cssText += 'position:absolute;bottom:' + padB + 'px;left:' + textLeft + 'px;right:' + padX + 'px;z-index:2;';
+    canvas.appendChild(head);
+  },
+
+  // 320x50 — logo left, headline right (no subtitle, too tight)
+  'mbanner-50': (ad, canvas, pw, ph, s) => {
+    const padX = Math.round(10 * s);
+    const logoAreaW = Math.round(70 * s);
+
+    const logoH = Math.round(32 * s);
+    const logo = logoEl(ad.logo, logoH);
+    logo.style.cssText += 'position:absolute;left:' + padX + 'px;top:50%;transform:translateY(-50%);z-index:3;';
+    canvas.appendChild(logo);
+
+    const textLeft = padX + logoAreaW + Math.round(8 * s);
+    const headH = Math.round(16 * s);
+    const head = headlineEl(ad.headline, headH, CREAM, 'right');
+    head.style.cssText += 'position:absolute;left:' + textLeft + 'px;right:' + padX + 'px;top:50%;transform:translateY(-50%);z-index:2;';
+    canvas.appendChild(head);
   },
 };
 
@@ -696,10 +570,9 @@ const LAYOUT_RENDERERS = {
 async function downloadAll() {
   const btn = document.getElementById('dlBtn');
   btn.disabled = true;
-  btn.textContent = 'Preparing fonts...';
+  btn.textContent = 'Loading fonts...';
 
   try {
-    // Ensure fonts load before rasterizing
     await document.fonts.ready;
 
     if (typeof html2canvas === 'undefined') {
@@ -715,18 +588,16 @@ async function downloadAll() {
     const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
     const zip = new JSZip();
 
-    // Render each ad to a detached high-res node, then html2canvas it at full size
     for (let i = 0; i < generatedAds.length; i++) {
       const ad = generatedAds[i];
       btn.textContent = 'Rendering ' + (i + 1) + ' / ' + generatedAds.length;
 
-      const offscreen = renderAdCanvas(ad, 1);  // scale = 1 → native size
+      const offscreen = renderAdCanvas(ad, 1);
       offscreen.style.position = 'absolute';
       offscreen.style.left = '-99999px';
       offscreen.style.top = '0';
       document.body.appendChild(offscreen);
 
-      // Wait for images inside
       const imgs = offscreen.querySelectorAll('img');
       await Promise.all(Array.from(imgs).map(im => im.complete ? Promise.resolve() :
         new Promise(res => { im.onload = im.onerror = res; })));
@@ -743,7 +614,7 @@ async function downloadAll() {
 
       const blob = await new Promise(r => rendered.toBlob(r, 'image/png'));
       const slug = ad.headline.replace(/\n/g, '-')
-        .replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().slice(0, 30);
+        .replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().slice(0, 24);
       zip.file(ad.size.name + '/photo' + (ad.photo.idx + 1) + '_' + slug + '.png', blob);
 
       offscreen.remove();
@@ -764,8 +635,7 @@ async function downloadAll() {
   }
 
   btn.disabled = false;
-  btn.textContent = 'Download Everything (ZIP)';
+  btn.textContent = 'Download All (ZIP)';
 }
 
-// ───────────────────────── Boot ─────────────────────────
 init();

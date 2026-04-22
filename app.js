@@ -346,10 +346,11 @@ function renderAdCanvas(ad, scale) {
   canvas.dataset.realW = ad.size.w;
   canvas.dataset.realH = ad.size.h;
 
-  // Background photo
+  // Background photo. No crossOrigin — images are same-origin on Netlify
+  // and setting crossOrigin='anonymous' requires CORS response headers that
+  // Netlify doesn't send by default, causing silent load failure.
   const bg = document.createElement('img');
   bg.src = ad.photo.src;
-  bg.crossOrigin = 'anonymous';
   bg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;' +
     'object-position:' + ad.photo.focal.x + '% ' + ad.photo.focal.y + '%;';
   canvas.appendChild(bg);
@@ -417,7 +418,6 @@ function subtitleEl(text, sizePx, color, alignment) {
 function logoEl(variant, heightPx) {
   const img = document.createElement('img');
   img.src = 'assets/logos/logo-' + variant + '.png';
-  img.crossOrigin = 'anonymous';
   img.style.cssText = 'height:' + heightPx + 'px;width:auto;display:block;';
   return img;
 }

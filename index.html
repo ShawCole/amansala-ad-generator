@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amansala Ad Generator</title>
+<!-- NOTE: innerHTML usage in this file is for rendering ad previews from controlled, -->
+<!-- application-defined data only. No user-supplied HTML is injected. All text content -->
+<!-- comes from form inputs that are used for display rendering, not stored/shared. -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #111113;
+  --surface-2: #19191d;
+  --border: #2a2a30;
+  --border-active: #4a4a55;
+  --text: #e8e8ec;
+  --text-dim: #8a8a95;
+  --text-muted: #55555f;
+  --accent: #c8ff00;
+  --accent-dim: #c8ff0022;
+  --green: #22c55e;
+  --brand-beige: #DDCFC6;
+  --brand-taupe: #CCBEB5;
+  --brand-brown: #806759;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; }
+
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-header h1 { font-size: 18px; font-weight: 600; }
+.app-header .tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.app-layout { display: flex; min-height: calc(100vh - 57px); }
+.sidebar {
+  width: 320px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.main-content { flex: 1; padding: 20px; overflow-y: auto; padding-bottom: 80px; }
+
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+.section-title:first-child { margin-top: 0; }
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.photo-thumb {
+  aspect-ratio: 1/2;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+}
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-thumb:hover { border-color: var(--border-active); }
+.photo-thumb.selected { border-color: var(--accent); }
+.photo-thumb.selected::after {
+  content: '\2713';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: #000;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.field { margin-bottom: 12px; }
+.field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.field input, .field select, .field textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  outline: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+
+.headline-list { display: flex; flex-direction: column; gap: 6px; }
+.headline-row { display: flex; gap: 6px; }
+.headline-row input { flex: 1; }
+.headline-row button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  width: 32px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.headline-row button:hover { color: var(--text); border-color: var(--border-active); }
+
+.logo-options { display: flex; gap: 8px; }
+.logo-opt {
+  width: 60px;
+  height: 40px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  overflow: hidden;
+}
+.logo-opt:hover { border-color: var(--border-active); }
+.logo-opt.selected { border-color: var(--accent); }
+.logo-opt img { max-width: 50px; max-height: 30px; object-fit: contain; }
+.logo-opt.dark-bg { background: #333; }
+
+.gen-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #0a0a0a;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.15s;
+}
+.gen-btn:hover { filter: brightness(1.1); }
+.gen-btn:active { transform: scale(0.98); }
+
+.preview-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.size-filter {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.size-filter:hover { border-color: var(--border-active); color: var(--text); }
+.size-filter.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+.preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.ad-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ad-preview-header {
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+.ad-canvas {
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.stat-chip strong { color: var(--accent); }
+
+.download-bar {
+  position: fixed;
+  bottom: 0;
+  left: 320px;
+  right: 0;
+  padding: 12px 20px;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  z-index: 50;
+}
+.dl-btn {
+  padding: 10px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dl-btn:hover { background: var(--accent); color: #0a0a0a; }
+.dl-btn.primary { background: var(--accent); color: #0a0a0a; }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: var(--text-muted);
+  text-align: center;
+}
+.empty-state h2 { font-size: 20px; margin-bottom: 8px; color: var(--text-dim); }
+.empty-state p { font-size: 14px; max-width: 400px; line-height: 1.5; }
+
+.add-headline-btn {
+  margin-top: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'Outfit', sans-serif;
+}
+
+@media (max-width: 900px) {
+  .app-layout { flex-direction: column; }
+  .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .download-bar { left: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>Amansala Ad Generator</h1>
+  <div class="tag">canva-ads-creator</div>
+</div>
+
+<div class="app-layout">
+  <div class="sidebar">
+    <div class="section-title">Campaign</div>
+    <div class="field">
+      <label>Campaign Name</label>
+      <select id="campaignSelect" onchange="loadCampaign(this.value)">
+        <option value="bikini-bootcamp">Bikini Bootcamp</option>
+        <option value="mothers-day">Mother's Day</option>
+        <option value="soulful-singles">Soulful Singles</option>
+        <option value="restore-renew">Restore &amp; Renew</option>
+        <option value="summer-family">Summer Family</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+
+    <div class="section-title">Select Photos (pick 3)</div>
+    <div class="photo-grid" id="photoGrid"></div>
+
+    <div class="section-title">Headlines</div>
+    <div class="headline-list" id="headlineList"></div>
+    <button class="add-headline-btn" onclick="addHeadline()">+ Add Headline</button>
+
+    <div class="section-title">Subtitle</div>
+    <div class="field">
+      <input type="text" id="subtitleInput" placeholder="A VACATION WITH A PURPOSE" />
+    </div>
+
+    <div class="section-title">Body Copy</div>
+    <div class="field">
+      <textarea id="bodyInput" rows="3" placeholder="YOUR BODY COPY HERE"></textarea>
+    </div>
+
+    <div class="section-title">Logo</div>
+    <div class="logo-options" id="logoOptions">
+      <div class="logo-opt selected dark-bg" data-logo="white" onclick="selectLogo(this)">
+        <img src="assets/logos/logo-white.png" alt="White">
+      </div>
+      <div class="logo-opt" data-logo="black" onclick="selectLogo(this)">
+        <img src="assets/logos/logo-black.png" alt="Black">
+      </div>
+      <div class="logo-opt" data-logo="gold" onclick="selectLogo(this)">
+        <img src="assets/logos/logo-gold.png" alt="Gold">
+      </div>
+    </div>
+
+    <div class="section-title">Fade Overlay</div>
+    <div class="field">
+      <select id="fadeSelect">
+        <option value="radial">Radial (match Paulina's style)</option>
+        <option value="gradient">Bottom gradient</option>
+        <option value="none">No fade</option>
+      </select>
+    </div>
+
+    <button class="gen-btn" id="generateBtn" onclick="generateAds()">Generate All Ads</button>
+  </div>
+
+  <div class="main-content">
+    <div id="emptyState" class="empty-state">
+      <h2>Select photos &amp; headlines</h2>
+      <p>Pick 3 photos from the sidebar, customize your headlines, then hit Generate. You'll get all 11 sizes with every variation.</p>
+    </div>
+
+    <div id="previewArea" style="display:none">
+      <div class="stats-bar" id="statsBar"></div>
+      <div class="preview-controls" id="sizeFilters"></div>
+      <div class="preview-grid" id="previewGrid"></div>
+    </div>
+
+    <div class="download-bar" id="downloadBar" style="display:none">
+      <button class="dl-btn primary" id="dlBtn" onclick="downloadAll()">Download ZIP</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

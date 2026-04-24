@@ -231,8 +231,12 @@ const CATALOG = [
   },
   {
     size: '320x50', w: 320, h: 50, label: '320 × 50 — Mobile Banner',
-    variants: [],
-    gap: 'No finished 320×50 reference exists in the Canva source. Generator will derive layout by scaling the 320×100 pattern.'
+    variants: [
+      { group: 'finished', label: 'Finished (wordmark + headline, e.g. "make memories with mom")', items: [1,2,3].map(n => ({ src: 'references/320x50/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only (palm + AMANSALA)', items: [1,2,3].map(n => ({ src: 'references/320x50-logo-only/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-tulum', label: 'Logo + "Tulum" wordmark', items: [1,2,3].map(n => ({ src: 'references/320x50-logo-tulum/' + n + '.png', name: '#' + n })) },
+      { group: 'bg-only', label: 'Background photos only (template)', items: [1,2,3].map(n => ({ src: 'references/320x50-bg-only/' + n + '.png', name: '#' + n })) },
+    ]
   },
 ];
 function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }

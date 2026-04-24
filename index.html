@@ -1,571 +1,675 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Amansala Ad Generator</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amansala Ads · Reference & Spec Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Playfair Display → closest free Google match for the Canva reference headline serif. -->
-<!-- Nunito Sans → subtitle/body, matching Paulina's ads. -->
-<!-- Override headline via the font upload slot if the real Architype Bayer .woff2 is dropped in. -->
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Nunito+Sans:wght@300;400;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Nunito+Sans:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-:root {
-  --cream: #F5F0E8;
-  --cream-soft: rgba(245,240,232,0.95);
-  --sand: #EBE2D5;
-  --tan: #B79D85;
-  --espresso: #574A3F;
-  --near-black: #362F28;
+  :root {
+    --cream: #F5F0E8;
+    --sand: #E8DCC9;
+    --tan: #B79D85;
+    --espresso: #574A3F;
+    --near-black: #362F28;
+    --ink: #1f1a15;
+    --accent-headline: #E27F7F;
+    --accent-subtitle: #F2C94C;
+    --accent-body: #56CCF2;
+    --accent-logo: #27AE60;
+    --accent-cta: #BB6BD9;
+    --accent-fade: #9E9E9E;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Nunito Sans', system-ui, sans-serif;
+    --font-headline: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); font-family: var(--font-sans); }
+  body { display: grid; grid-template-columns: 340px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
 
-  --bg: #171412;
-  --surface: #1f1b18;
-  --surface-2: #282320;
-  --border: #3a322c;
-  --border-active: #5a4e44;
-  --text: #EBE2D5;
-  --text-dim: #9a8a7d;
-  --text-muted: #6b5e54;
-  --accent: #B79D85;
-  --accent-dim: rgba(183,157,133,0.18);
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px;
+    background: var(--near-black); color: var(--cream);
+    border-bottom: 1px solid #1f1a15;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar h1 { font-family: var(--font-headline); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: 0.01em; }
+  .topbar .tag { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--tan); padding: 3px 10px; border: 1px solid var(--tan); border-radius: 999px; }
+  .topbar .actions { margin-left: auto; display: flex; gap: 10px; }
+  .btn { font-family: var(--font-sans); background: var(--tan); color: var(--ink); border: none; padding: 8px 14px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--cream); border: 1px solid var(--tan); }
+  .btn:hover { filter: brightness(1.08); }
 
-  --font-headline: 'ArchitypeBayer', 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
-  --font-sans: 'Nunito Sans', 'Helvetica Neue', sans-serif;
-}
+  .sidebar { background: #EAE0CF; border-right: 1px solid var(--tan); padding: 20px; overflow-y: auto; max-height: calc(100vh - 58px); position: sticky; top: 58px; }
+  .sidebar h2 { font-family: var(--font-headline); font-weight: 600; font-size: 15px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--espresso); margin: 0 0 6px; }
+  .sidebar .section { background: var(--cream); padding: 14px; border-radius: 6px; margin-bottom: 14px; border: 1px solid var(--sand); }
+  .sidebar .section h3 { margin: 0 0 10px; font-family: var(--font-sans); font-weight: 700; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--espresso); display: flex; align-items: center; gap: 8px; }
+  .sidebar label { display: block; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); margin-bottom: 4px; font-weight: 700; }
+  .sidebar input[type="text"], .sidebar textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--sand); border-radius: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: #fff; margin-bottom: 10px; resize: vertical; }
+  .sidebar textarea { min-height: 56px; line-height: 1.35; }
+  .sidebar select { width: 100%; padding: 8px 10px; border: 1px solid var(--sand); border-radius: 4px; background: #fff; font-family: var(--font-sans); font-size: 13px; margin-bottom: 10px; }
+  .swatch-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--sand); background: #fff; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: 600; }
+  .swatch.active { background: var(--espresso); color: var(--cream); border-color: var(--espresso); }
+  .dot-12 { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+  .legend .pill { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { background: var(--bg); color: var(--text); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
-body { min-height: 100vh; }
+  main { padding: 28px 36px 120px; overflow-x: hidden; }
+  .intro { background: #fff; border: 1px solid var(--sand); border-radius: 8px; padding: 18px 22px; margin-bottom: 24px; max-width: 900px; }
+  .intro p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: var(--espresso); }
+  .intro p:last-child { margin-bottom: 0; }
+  .intro strong { color: var(--near-black); }
 
-/* Header */
-.app-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.app-header h1 { font-family: var(--font-headline); font-size: 22px; font-weight: 400; letter-spacing: 0.04em; text-transform: lowercase; }
-.app-header .tag {
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--accent);
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
-  padding: 4px 10px;
-  font-weight: 600;
-}
+  .size-group { margin-bottom: 40px; }
+  .size-group > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--sand); }
+  .size-group h2 { font-family: var(--font-headline); font-weight: 600; font-size: 22px; margin: 0; color: var(--near-black); }
+  .size-group .dims { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); }
+  .size-group .count { margin-left: auto; font-size: 11px; color: var(--espresso); letter-spacing: 0.1em; text-transform: uppercase; }
 
-.app-layout { display: flex; min-height: calc(100vh - 57px); }
-.sidebar {
-  width: 340px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 18px;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
-.main-content { flex: 1; padding: 20px; overflow-y: auto; padding-bottom: 100px; }
+  .variant-group { margin-bottom: 28px; }
+  .variant-group h3 { font-family: var(--font-sans); font-weight: 700; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--espresso); margin: 0 0 12px; }
+  .variant-group h3 .note { font-weight: 400; letter-spacing: 0.05em; text-transform: none; color: var(--tan); margin-left: 8px; font-size: 11px; }
 
-/* Size roster at top of main content */
-.size-roster {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-.size-roster-title {
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.size-roster-title strong { color: var(--accent); font-weight: 700; }
-.size-roster-grid { display: flex; gap: 8px; flex-wrap: wrap; }
-.size-pill {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-}
-.size-pill .dim {
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--text);
-  font-family: var(--font-sans);
-}
-.size-pill .label {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
+  .ads-grid { display: flex; flex-wrap: wrap; gap: 18px; }
+  .ad-wrap { position: relative; background: #fff; border: 1px solid var(--sand); border-radius: 6px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+  .ad-wrap.active { border-color: var(--espresso); box-shadow: 0 4px 16px rgba(55,74,63,0.15); }
+  .ad-wrap.has-annotations::after { content: '●'; position: absolute; top: 4px; right: 6px; color: var(--accent-logo); font-size: 10px; }
+  .ad-wrap .label { font-size: 10px; font-weight: 700; color: var(--tan); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; text-align: center; }
+  .ad-inner { position: relative; }
+  .ad-inner img { display: block; max-width: 100%; user-select: none; -webkit-user-drag: none; }
+  .ad-inner svg.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .ad-wrap.active .ad-inner svg.overlay { pointer-events: auto; cursor: crosshair; }
+  .box-rect { fill: rgba(0,0,0,0); stroke-width: 2; stroke-dasharray: 4 3; pointer-events: auto; cursor: move; }
+  .box-rect.selected { stroke-width: 3; stroke-dasharray: none; fill: rgba(0,0,0,0.08); }
+  .box-handle { fill: #fff; stroke: var(--near-black); stroke-width: 1.2; cursor: nwse-resize; }
+  .box-label { font-family: var(--font-sans); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; fill: #fff; }
 
-.section-title {
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  margin-top: 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-}
-.section-title:first-child { margin-top: 0; }
-.section-title .hint { color: var(--text-muted); font-size: 10px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+  .annotation-bar { position: sticky; top: 58px; z-index: 40; background: var(--near-black); color: var(--cream); padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
+  .annotation-bar .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  .annotation-bar .chip.active { background: var(--tan); color: var(--ink); border-color: var(--tan); }
+  .annotation-bar .chip .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .annotation-bar .status { margin-left: auto; color: var(--sand); font-size: 11px; letter-spacing: 0.08em; }
 
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-}
-.photo-tile {
-  position: relative;
-  aspect-ratio: 1/1;
-  border-radius: 4px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.15s;
-  background: var(--surface-2);
-}
-.photo-tile img { width: 100%; height: 100%; object-fit: cover; }
-.photo-tile:hover { border-color: var(--border-active); }
-.photo-tile.selected { border-color: var(--accent); }
-.photo-tile .tile-check {
-  position: absolute;
-  bottom: 3px;
-  right: 3px;
-  background: var(--accent);
-  color: var(--near-black);
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-}
-.photo-tile.selected .tile-check { display: flex; }
-.photo-tile .focal-tag {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  background: rgba(23,20,18,0.7);
-  color: var(--cream);
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  opacity: 0.8;
-}
-.photo-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.photo-actions button {
-  flex: 1;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 5px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  border-radius: 4px;
-  font-weight: 600;
-}
-.photo-actions button:hover { color: var(--text); border-color: var(--accent); }
-
-.field { margin-bottom: 10px; }
-.field label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-dim);
-  margin-bottom: 4px;
-  letter-spacing: 0.05em;
-}
-.field input, .field select, .field textarea {
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  outline: none;
-}
-.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
-.field input[type=file] { padding: 6px; font-size: 11px; }
-
-.headline-list { display: flex; flex-direction: column; gap: 5px; }
-.headline-row { display: flex; gap: 5px; }
-.headline-row input { flex: 1; font-family: var(--font-headline); text-transform: lowercase; font-size: 14px; }
-.headline-row button {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-muted);
-  width: 28px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.headline-row button:hover { color: var(--text); border-color: var(--accent); }
-.add-headline-btn {
-  margin-top: 6px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 5px;
-  color: var(--text-muted);
-  padding: 6px;
-  font-size: 11px;
-  cursor: pointer;
-  width: 100%;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.add-headline-btn:hover { color: var(--text); border-color: var(--accent); }
-
-.logo-options { display: flex; gap: 6px; }
-.logo-opt {
-  flex: 1;
-  height: 46px;
-  border: 2px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-.logo-opt:hover { border-color: var(--border-active); }
-.logo-opt.selected { border-color: var(--accent); }
-.logo-opt img { max-width: 70%; max-height: 70%; object-fit: contain; }
-.logo-opt.dark-bg { background: var(--near-black); }
-
-.gen-btn {
-  width: 100%;
-  padding: 13px;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--near-black);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  cursor: pointer;
-  margin-top: 18px;
-  transition: all 0.15s;
-}
-.gen-btn:hover { filter: brightness(1.1); }
-.gen-btn:active { transform: scale(0.98); }
-
-/* Stats + filters */
-.stats-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-.stat-chip {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 12px;
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.stat-chip strong { color: var(--accent); margin-right: 4px; }
-
-.filter-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-.size-filter {
-  padding: 5px 11px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text-dim);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.size-filter:hover { border-color: var(--border-active); color: var(--text); }
-.size-filter.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-
-.preview-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
-}
-.ad-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.ad-card-header {
-  padding: 5px 9px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-  font-size: 9px;
-  color: var(--text-muted);
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.ad-canvas {
-  position: relative;
-  overflow: hidden;
-}
-
-.download-bar {
-  position: fixed;
-  bottom: 0;
-  left: 340px;
-  right: 0;
-  padding: 12px 20px;
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  z-index: 50;
-}
-.dl-btn {
-  padding: 11px 22px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--near-black);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.dl-btn:hover { filter: brightness(1.1); }
-.dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 50vh;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 40px;
-}
-.empty-state h2 { font-family: var(--font-headline); font-size: 28px; margin-bottom: 12px; color: var(--text-dim); text-transform: lowercase; letter-spacing: 0.04em; font-weight: 400; }
-.empty-state p { font-size: 13px; max-width: 460px; line-height: 1.6; }
-
-/* Photo tagger */
-.tagger-overlay {
-  position: fixed; inset: 0;
-  background: rgba(10,8,6,0.9);
-  z-index: 500;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.tagger-overlay.active { display: flex; }
-.tagger-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  max-width: 540px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-.tagger-panel h3 { font-family: var(--font-headline); font-size: 22px; margin-bottom: 8px; text-transform: lowercase; letter-spacing: 0.04em; font-weight: 400; }
-.tagger-panel p { color: var(--text-dim); font-size: 12px; margin-bottom: 14px; line-height: 1.5; }
-.tagger-preview {
-  position: relative;
-  max-width: 100%;
-  max-height: 50vh;
-  margin: 0 auto 12px;
-  overflow: hidden;
-  border-radius: 6px;
-  cursor: crosshair;
-  background: var(--surface-2);
-}
-.tagger-preview img { width: 100%; height: auto; display: block; }
-.focal-dot {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 3px solid var(--cream);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-.tagger-controls { display: flex; gap: 8px; justify-content: flex-end; }
-.btn-secondary {
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.btn-secondary:hover { color: var(--text); border-color: var(--accent); }
-
-@media (max-width: 900px) {
-  .app-layout { flex-direction: column; }
-  .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
-  .download-bar { left: 0; }
-}
+  .data-gap { background: #fff4e4; border: 1px dashed #d79a3a; color: #a15e10; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
 </style>
 </head>
 <body>
 
-<div class="app-header">
-  <h1>amansala / ad generator</h1>
-  <div class="tag">6 DSP sizes • canva-exact</div>
-</div>
-
-<div class="app-layout">
-  <div class="sidebar">
-    <div class="section-title">Campaign</div>
-    <div class="field">
-      <select id="campaignSelect" onchange="loadCampaign(this.value)"></select>
-    </div>
-
-    <div class="section-title">
-      <span>Photos</span>
-      <span class="hint" id="photoCount">0 selected</span>
-    </div>
-    <div class="photo-grid" id="photoGrid"></div>
-    <div class="photo-actions">
-      <button onclick="selectAllPhotos()">Select All</button>
-      <button onclick="clearPhotos()">Clear</button>
-    </div>
-
-    <div class="section-title">
-      <span>Headlines</span>
-      <span class="hint">one per variation</span>
-    </div>
-    <div class="headline-list" id="headlineList"></div>
-    <button class="add-headline-btn" onclick="addHeadline()">+ Add Headline</button>
-
-    <div class="section-title">Subtitle / Body</div>
-    <div class="field">
-      <textarea id="subtitleInput" rows="3" placeholder="save up to 500$ when you gift mom a trip to Tulum"></textarea>
-    </div>
-
-    <div class="section-title">Logo Variant</div>
-    <div class="logo-options" id="logoOptions">
-      <div class="logo-opt dark-bg selected" data-logo="white" onclick="selectLogo(this)">
-        <img src="assets/logos/logo-white.png" alt="White">
-      </div>
-      <div class="logo-opt" data-logo="black" onclick="selectLogo(this)">
-        <img src="assets/logos/logo-black.png" alt="Black">
-      </div>
-      <div class="logo-opt" data-logo="gold" onclick="selectLogo(this)">
-        <img src="assets/logos/logo-gold.png" alt="Gold">
-      </div>
-    </div>
-
-    <div class="section-title">
-      <span>Headline Font</span>
-      <span class="hint">upload real Bayer .woff2</span>
-    </div>
-    <div class="field">
-      <input type="file" id="fontUpload" accept=".woff,.woff2,.otf,.ttf" onchange="loadCustomFont(this)" />
-    </div>
-
-    <button class="gen-btn" onclick="generateAds()">Generate All Variations</button>
-  </div>
-
-  <div class="main-content">
-    <div class="size-roster">
-      <div class="size-roster-title">
-        <strong>6 DSP sizes</strong>
-        <span>generated for every photo × headline combination</span>
-      </div>
-      <div class="size-roster-grid" id="sizeRoster"></div>
-    </div>
-
-    <div id="emptyState" class="empty-state">
-      <h2>pick your photos &amp; copy</h2>
-      <p>Every selected photo × every headline renders in all 6 DSP sizes (300x250, 300x600, 728x90, 160x600, 320x100, 320x50) matched to Paulina's Canva reference designs. Right-click any photo to set its focal point for smart cropping.</p>
-    </div>
-
-    <div id="previewArea" style="display:none">
-      <div class="stats-bar" id="statsBar"></div>
-      <div class="filter-row" id="sizeFilters"></div>
-      <div class="preview-grid" id="previewGrid"></div>
-    </div>
-
-    <div class="download-bar" id="downloadBar" style="display:none">
-      <button class="dl-btn" id="dlBtn" onclick="downloadAll()">Download All (ZIP)</button>
-    </div>
+<div class="topbar">
+  <h1>Amansala · Reference & Spec Editor</h1>
+  <span class="tag">mockup</span>
+  <div class="actions">
+    <button class="btn ghost" id="loadSpecBtn">Load spec.json</button>
+    <button class="btn ghost" id="clearBtn">Clear annotations</button>
+    <button class="btn" id="saveSpecBtn">Export spec.json</button>
   </div>
 </div>
 
-<div class="tagger-overlay" id="taggerOverlay">
-  <div class="tagger-panel">
-    <h3>set focal point</h3>
-    <p>Click anywhere on the photo to mark the focal point — smart cropping will keep that point visible across all 6 ad sizes.</p>
-    <div class="tagger-preview" id="taggerPreview" onclick="setFocal(event)">
-      <img id="taggerImg" src="">
-      <div class="focal-dot" id="focalDot" style="left:50%;top:50%"></div>
-    </div>
-    <div class="tagger-controls">
-      <button class="btn-secondary" onclick="closeTagger()">Cancel</button>
-      <button class="gen-btn" onclick="saveTagger()" style="width:auto;margin:0;padding:8px 16px">Save</button>
+<aside class="sidebar">
+  <h2 style="margin-bottom:14px;">Element Vocabulary</h2>
+  <p style="font-size:12px; color:var(--espresso); margin:0 0 14px; line-height:1.45;">
+    These text boxes are the <strong>input surface</strong> for the final generator. They don't edit the reference images — the images are Canva final output, frozen as truth. Typing here doesn't change them.
+  </p>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-headline)"></span> Headline</h3>
+    <label>Text (use \n for line breaks)</label>
+    <textarea id="in-headline">bikini
+bootcamp</textarea>
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-subtitle)"></span> Subtitle</h3>
+    <label>Text</label>
+    <input type="text" id="in-subtitle" value="A VACATION WITH A PURPOSE" />
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-body)"></span> Body</h3>
+    <label>Text</label>
+    <textarea id="in-body">THE ULTIMATE
+MIND BODY SPIRIT
+TUNE UP.
+
+WORK OUT, EAT FRESH
+N HEALTHY AND GET
+PAMPERED
+ON THE BEACH.</textarea>
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-logo)"></span> Logo / Wordmark</h3>
+    <label>Variant</label>
+    <div class="swatch-row" id="logoSwatches">
+      <div class="swatch active" data-logo="palm-white">Palm (white)</div>
+      <div class="swatch" data-logo="palm-gold">Palm (gold)</div>
+      <div class="swatch" data-logo="palm-black">Palm (black)</div>
+      <div class="swatch" data-logo="wordmark-amansala-tulum">AMANSALA Tulum</div>
+      <div class="swatch" data-logo="wordmark-amansala">AMANSALA</div>
     </div>
   </div>
-</div>
 
-<script src="app.js"></script>
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-cta)"></span> CTA / Accent</h3>
+    <label>Optional text</label>
+    <input type="text" id="in-cta" value="" placeholder="(often absent)" />
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-fade)"></span> Fade / Overlay</h3>
+    <label>Direction</label>
+    <select id="in-fade">
+      <option value="none">None</option>
+      <option value="top" selected>From top</option>
+      <option value="bottom">From bottom</option>
+      <option value="both">Both edges</option>
+      <option value="center-band">Center band (160×600 split)</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <h3>Annotation Legend</h3>
+    <div class="legend" id="annoLegend"></div>
+  </div>
+</aside>
+
+<main>
+  <div class="intro">
+    <p><strong>What this page is.</strong> Every finished Canva ad Paulina built, grouped by size. The sidebar on the left shows the <em>element vocabulary</em> — the real generator will drive these 6 fields. The images here are frozen final output, for reverse-engineering only.</p>
+    <p><strong>How to annotate.</strong> Click any ad → pick an element type in the annotation bar below → drag on the image to draw its bounding box. Right-click a box to delete. Drag the corner handle to resize. Export <code>spec.json</code> when done.</p>
+    <p><strong>Layout variants.</strong> Some sizes have multiple layout variants (full text / no subtitle / logo only / template). The <em>element presence matrix</em> — which fields appear in which variant — is what we're capturing.</p>
+  </div>
+
+  <div class="annotation-bar" id="annoBar"></div>
+
+  <div id="catalog"></div>
+</main>
+
+<input type="file" id="loadFileInput" accept=".json" style="display:none" />
+
+<script>
+const CATALOG = [
+  {
+    size: '300x250', w: 300, h: 250, label: '300 × 250 — Medium Rectangle',
+    variants: [
+      { group: 'finished', label: 'Finished (headline + subtitle over photo)', items: [1,2,3,4].map(n => ({ src: 'references/300x250/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '300x600', w: 300, h: 600, label: '300 × 600 — Half-Page',
+    variants: [
+      { group: 'finished', label: 'Full layout (headline + subtitle + body)', items: range(1,13).map(n => ({ src: 'references/300x600/' + n + '.png', name: '#' + n })) },
+      { group: 'no-subtitle', label: 'Headline + logo (no subtitle, no body)', items: range(1,13).map(n => ({ src: 'references/300x600-no-subtitle/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only with fade', items: [1,2,3].map(n => ({ src: 'references/300x600-logo-only/' + n + '.png', name: '#' + n })) },
+      { group: 'fade-template', label: 'Empty template (no text, fade applied)', items: range(1,13).map(n => ({ src: 'references/300x600-fade-template/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '160x600', w: 160, h: 600, label: '160 × 600 — Wide Skyscraper',
+    variants: [
+      { group: 'finished', label: 'Finished (photo + text band + photo)', items: range(1,8).map(n => ({ src: 'references/160x600/' + n + '.png', name: '#' + n })) },
+      { group: 'template', label: 'Empty template (solid center band, no text)', items: range(1,8).map(n => ({ src: 'references/160x600-template/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '728x90', w: 728, h: 90, label: '728 × 90 — Leaderboard',
+    variants: [
+      { group: 'finished', label: 'Finished (photo montage + text panel)', items: [1,2,3].map(n => ({ src: 'references/728x90/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only', items: [1,2,3].map(n => ({ src: 'references/728x90-logo-only/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '320x100', w: 320, h: 100, label: '320 × 100 — Large Mobile Banner',
+    variants: [
+      { group: 'finished', label: 'Finished (photo + solid text panel)', items: [1,2,3].map(n => ({ src: 'references/320x100/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '320x50', w: 320, h: 50, label: '320 × 50 — Mobile Banner',
+    variants: [
+      { group: 'finished', label: 'Finished (wordmark + headline, e.g. "make memories with mom")', items: [1,2,3].map(n => ({ src: 'references/320x50/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only (palm + AMANSALA)', items: [1,2,3].map(n => ({ src: 'references/320x50-logo-only/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-tulum', label: 'Logo + "Tulum" wordmark', items: [1,2,3].map(n => ({ src: 'references/320x50-logo-tulum/' + n + '.png', name: '#' + n })) },
+      { group: 'bg-only', label: 'Background photos only (template)', items: [1,2,3].map(n => ({ src: 'references/320x50-bg-only/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+];
+function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
+
+const TOOLS = {
+  headline: { label: 'headline', stroke: '#E27F7F' },
+  subtitle: { label: 'subtitle', stroke: '#F2C94C' },
+  body:     { label: 'body',     stroke: '#56CCF2' },
+  logo:     { label: 'logo',     stroke: '#27AE60' },
+  cta:      { label: 'cta',      stroke: '#BB6BD9' },
+  fade:     { label: 'fade',     stroke: '#9E9E9E' },
+};
+
+const STORAGE_KEY = 'amansala-ad-spec-v1';
+let annotations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let activeAdEl = null;
+let activeSrc = null;
+let currentTool = 'headline';
+let sidebarState = {
+  headline: 'bikini\nbootcamp',
+  subtitle: 'A VACATION WITH A PURPOSE',
+  body: '',
+  logo: 'palm-white',
+  cta: '',
+  fade: 'top',
+};
+
+function saveLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations)); }
+
+// --- Build annotation bar ---
+function buildAnnoBar() {
+  const bar = document.getElementById('annoBar');
+  bar.replaceChildren();
+  const label = document.createElement('span');
+  label.style.cssText = 'font-weight:700; letter-spacing:0.08em; font-size:10px; text-transform:uppercase;';
+  label.textContent = 'Drawing mode:';
+  bar.appendChild(label);
+  for (const [key, tool] of Object.entries(TOOLS)) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (key === currentTool ? ' active' : '');
+    chip.dataset.tool = key;
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = tool.stroke;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(tool.label.charAt(0).toUpperCase() + tool.label.slice(1)));
+    chip.addEventListener('click', () => {
+      currentTool = key;
+      buildAnnoBar();
+      updateStatus();
+    });
+    bar.appendChild(chip);
+  }
+  const status = document.createElement('span');
+  status.className = 'status';
+  status.id = 'annoStatus';
+  status.textContent = activeAdEl ? `Active: ${activeAdEl.dataset.size} · ${activeAdEl.dataset.variant} — drag to draw a ${currentTool} box` : `Drawing mode: ${currentTool} · click an ad to start`;
+  bar.appendChild(status);
+}
+function updateStatus() {
+  const s = document.getElementById('annoStatus');
+  if (!s) return;
+  s.textContent = activeAdEl ? `Active: ${activeAdEl.dataset.size} · ${activeAdEl.dataset.variant} — drag to draw a ${currentTool} box` : `Drawing mode: ${currentTool} · click an ad to start`;
+}
+
+// --- Build sidebar legend ---
+function buildLegend() {
+  const el = document.getElementById('annoLegend');
+  el.replaceChildren();
+  for (const [key, tool] of Object.entries(TOOLS)) {
+    const pill = document.createElement('div');
+    pill.className = 'pill';
+    const dot = document.createElement('span');
+    dot.className = 'dot-12';
+    dot.style.background = tool.stroke;
+    pill.appendChild(dot);
+    pill.appendChild(document.createTextNode(tool.label));
+    el.appendChild(pill);
+  }
+}
+
+// --- Render catalog ---
+function renderCatalog() {
+  const root = document.getElementById('catalog');
+  root.replaceChildren();
+  for (const size of CATALOG) {
+    const sec = document.createElement('section');
+    sec.className = 'size-group';
+    const header = document.createElement('header');
+    const h2 = document.createElement('h2');
+    h2.textContent = size.label;
+    header.appendChild(h2);
+    const dims = document.createElement('span');
+    dims.className = 'dims';
+    dims.textContent = `native ${size.w}×${size.h}`;
+    header.appendChild(dims);
+    const totalCount = (size.variants || []).reduce((a, v) => a + v.items.length, 0);
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = `${totalCount} references`;
+    header.appendChild(count);
+    sec.appendChild(header);
+
+    if (size.gap) {
+      const gap = document.createElement('div');
+      gap.className = 'data-gap';
+      gap.textContent = size.gap;
+      sec.appendChild(gap);
+    }
+    for (const variant of (size.variants || [])) {
+      const vg = document.createElement('div');
+      vg.className = 'variant-group';
+      const h3 = document.createElement('h3');
+      h3.textContent = variant.label + ' ';
+      const note = document.createElement('span');
+      note.className = 'note';
+      note.textContent = `${variant.items.length} variants`;
+      h3.appendChild(note);
+      vg.appendChild(h3);
+      const grid = document.createElement('div');
+      grid.className = 'ads-grid';
+      for (const item of variant.items) {
+        const ad = document.createElement('div');
+        ad.className = 'ad-wrap';
+        ad.dataset.src = item.src;
+        ad.dataset.size = size.size;
+        ad.dataset.variant = variant.group;
+        ad.style.width = (size.w <= 320 ? size.w : Math.min(size.w, 480)) + 'px';
+        const inner = document.createElement('div');
+        inner.className = 'ad-inner';
+        inner.style.aspectRatio = `${size.w}/${size.h}`;
+        const img = document.createElement('img');
+        img.src = item.src;
+        img.alt = item.name;
+        img.draggable = false;
+        inner.appendChild(img);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('class','overlay');
+        svg.setAttribute('viewBox', `0 0 ${size.w} ${size.h}`);
+        svg.setAttribute('preserveAspectRatio','none');
+        inner.appendChild(svg);
+        ad.appendChild(inner);
+        const lbl = document.createElement('div');
+        lbl.className = 'label';
+        lbl.textContent = item.name;
+        ad.appendChild(lbl);
+        ad.addEventListener('click', (e) => onAdClick(ad, size, variant, item, e));
+        grid.appendChild(ad);
+      }
+      vg.appendChild(grid);
+      sec.appendChild(vg);
+    }
+    root.appendChild(sec);
+  }
+  for (const src of Object.keys(annotations)) markHasAnnotations(src);
+  refreshActiveSvg();
+}
+
+function markHasAnnotations(src) {
+  const wrap = document.querySelector(`.ad-wrap[data-src="${CSS.escape(src)}"]`);
+  if (!wrap) return;
+  if ((annotations[src] || []).length > 0) wrap.classList.add('has-annotations');
+  else wrap.classList.remove('has-annotations');
+}
+
+function onAdClick(ad, size, variant, item, e) {
+  if (e.target.closest('.box-rect, .box-handle')) return;
+  if (activeAdEl && activeAdEl !== ad) activeAdEl.classList.remove('active');
+  activeAdEl = ad;
+  activeSrc = item.src;
+  ad.classList.add('active');
+  updateStatus();
+  refreshActiveSvg();
+}
+
+function svgRect(attrs) {
+  const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  for (const [k,v] of Object.entries(attrs)) r.setAttribute(k, v);
+  return r;
+}
+function svgText(attrs, text) {
+  const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+  for (const [k,v] of Object.entries(attrs)) t.setAttribute(k, v);
+  t.textContent = text;
+  return t;
+}
+
+function refreshActiveSvg() {
+  for (const wrap of document.querySelectorAll('.ad-wrap')) {
+    const src = wrap.dataset.src;
+    const svg = wrap.querySelector('svg.overlay');
+    svg.replaceChildren();
+    const boxes = annotations[src] || [];
+    const vb = svg.viewBox.baseVal;
+    boxes.forEach((b, idx) => {
+      const x = (b.x / 100) * vb.width;
+      const y = (b.y / 100) * vb.height;
+      const w = (b.w / 100) * vb.width;
+      const h = (b.h / 100) * vb.height;
+      const stroke = TOOLS[b.tool]?.stroke || '#000';
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.appendChild(svgRect({ class: 'box-rect', x, y, width: w, height: h, stroke, 'data-idx': idx }));
+      g.appendChild(svgRect({ class: 'box-label-bg', x, y: Math.max(0, y - 11), width: Math.min(w, 60), height: 11, fill: stroke, rx: 2, ry: 2 }));
+      g.appendChild(svgText({ class: 'box-label', x: x + 3, y: Math.max(9, y - 2) }, b.tool));
+      if (wrap === activeAdEl) {
+        g.appendChild(svgRect({ class: 'box-handle', x: x + w - 4, y: y + h - 4, width: 8, height: 8, 'data-handle': idx }));
+      }
+      svg.appendChild(g);
+    });
+  }
+  attachBoxHandlers();
+}
+
+function attachBoxHandlers() {
+  if (!activeAdEl) return;
+  const svg = activeAdEl.querySelector('svg.overlay');
+  const src = activeAdEl.dataset.src;
+  svg.onmousedown = (ev) => {
+    if (ev.button !== 0) return;
+    if (ev.target.classList.contains('box-rect') || ev.target.classList.contains('box-handle')) return;
+    ev.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const scaleX = vb.width / rect.width;
+    const scaleY = vb.height / rect.height;
+    const startX = (ev.clientX - rect.left) * scaleX;
+    const startY = (ev.clientY - rect.top) * scaleY;
+    const stroke = TOOLS[currentTool].stroke;
+    const temp = svgRect({ class: 'box-rect selected', x: startX, y: startY, width: 0, height: 0, stroke });
+    svg.appendChild(temp);
+    function move(e2) {
+      const cx = (e2.clientX - rect.left) * scaleX;
+      const cy = (e2.clientY - rect.top) * scaleY;
+      const x = Math.min(startX, cx), y = Math.min(startY, cy);
+      const w = Math.abs(cx - startX), h = Math.abs(cy - startY);
+      temp.setAttribute('x', x); temp.setAttribute('y', y);
+      temp.setAttribute('width', w); temp.setAttribute('height', h);
+    }
+    function up() {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      const x = parseFloat(temp.getAttribute('x'));
+      const y = parseFloat(temp.getAttribute('y'));
+      const w = parseFloat(temp.getAttribute('width'));
+      const h = parseFloat(temp.getAttribute('height'));
+      if (w < 3 || h < 3) { temp.remove(); return; }
+      annotations[src] = annotations[src] || [];
+      annotations[src].push({
+        tool: currentTool,
+        x: (x / vb.width) * 100,
+        y: (y / vb.height) * 100,
+        w: (w / vb.width) * 100,
+        h: (h / vb.height) * 100,
+      });
+      saveLocal();
+      markHasAnnotations(src);
+      refreshActiveSvg();
+    }
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  svg.addEventListener('contextmenu', (ev) => {
+    if (!ev.target.classList.contains('box-rect')) return;
+    ev.preventDefault();
+    const idx = parseInt(ev.target.dataset.idx, 10);
+    annotations[src].splice(idx, 1);
+    if (annotations[src].length === 0) delete annotations[src];
+    saveLocal();
+    markHasAnnotations(src);
+    refreshActiveSvg();
+  });
+  svg.querySelectorAll('.box-rect').forEach(r => {
+    r.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();
+      const idx = parseInt(r.dataset.idx, 10);
+      const box = annotations[src][idx];
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const scaleX = vb.width / rect.width;
+      const scaleY = vb.height / rect.height;
+      const startMouseX = ev.clientX;
+      const startMouseY = ev.clientY;
+      const startBoxX = box.x, startBoxY = box.y;
+      function move(e2) {
+        const dx = (e2.clientX - startMouseX) * scaleX / vb.width * 100;
+        const dy = (e2.clientY - startMouseY) * scaleY / vb.height * 100;
+        box.x = Math.max(0, Math.min(100 - box.w, startBoxX + dx));
+        box.y = Math.max(0, Math.min(100 - box.h, startBoxY + dy));
+        refreshActiveSvg();
+      }
+      function up() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        saveLocal();
+      }
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+  });
+  svg.querySelectorAll('.box-handle').forEach(h => {
+    h.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();
+      const idx = parseInt(h.dataset.handle, 10);
+      const box = annotations[src][idx];
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const scaleX = vb.width / rect.width;
+      const scaleY = vb.height / rect.height;
+      const startMouseX = ev.clientX;
+      const startMouseY = ev.clientY;
+      const startW = box.w, startH = box.h;
+      function move(e2) {
+        const dw = (e2.clientX - startMouseX) * scaleX / vb.width * 100;
+        const dh = (e2.clientY - startMouseY) * scaleY / vb.height * 100;
+        box.w = Math.max(1, Math.min(100 - box.x, startW + dw));
+        box.h = Math.max(1, Math.min(100 - box.y, startH + dh));
+        refreshActiveSvg();
+      }
+      function up() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        saveLocal();
+      }
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+  });
+}
+
+// --- Logo swatch ---
+document.querySelectorAll('#logoSwatches .swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#logoSwatches .swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    sidebarState.logo = sw.dataset.logo;
+  });
+});
+
+// --- Sidebar input sync ---
+['headline','subtitle','body','cta','fade'].forEach(k => {
+  const el = document.getElementById('in-' + k);
+  if (!el) return;
+  el.addEventListener('input', () => { sidebarState[k] = el.value; });
+});
+
+// --- Export / import ---
+document.getElementById('saveSpecBtn').addEventListener('click', () => {
+  const spec = buildSpec();
+  const blob = new Blob([JSON.stringify(spec, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'spec.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('loadSpecBtn').addEventListener('click', () => {
+  document.getElementById('loadFileInput').click();
+});
+document.getElementById('loadFileInput').addEventListener('change', (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const spec = JSON.parse(e.target.result);
+      if (spec && spec.annotations) {
+        annotations = spec.annotations;
+        saveLocal();
+        renderCatalog();
+        alert('Spec loaded. ' + Object.keys(annotations).length + ' ads have annotations.');
+      }
+    } catch (err) { alert('Invalid spec.json: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all annotations? This cannot be undone.')) return;
+  annotations = {};
+  saveLocal();
+  renderCatalog();
+});
+
+function buildSpec() {
+  const perImage = annotations;
+  const rollup = {};
+  for (const size of CATALOG) {
+    for (const variant of (size.variants || [])) {
+      const key = `${size.size}:${variant.group}`;
+      const imageKeys = variant.items.map(it => it.src).filter(s => perImage[s]);
+      if (imageKeys.length === 0) continue;
+      const byTool = {};
+      for (const src of imageKeys) {
+        for (const b of perImage[src]) {
+          byTool[b.tool] = byTool[b.tool] || [];
+          byTool[b.tool].push(b);
+        }
+      }
+      const avg = {};
+      for (const tool of Object.keys(byTool)) {
+        const arr = byTool[tool];
+        const m = (k) => arr.reduce((a,x)=>a+x[k],0) / arr.length;
+        avg[tool] = { x: +m('x').toFixed(2), y: +m('y').toFixed(2), w: +m('w').toFixed(2), h: +m('h').toFixed(2), samples: arr.length };
+      }
+      rollup[key] = {
+        size: size.size,
+        variant: variant.group,
+        width: size.w,
+        height: size.h,
+        element_presence: Object.keys(avg),
+        element_boxes_pct: avg,
+        source_image_count: imageKeys.length,
+      };
+    }
+  }
+  return {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    sidebar_vocabulary: sidebarState,
+    annotations: perImage,
+    layout_rollup: rollup,
+    notes: [
+      'annotations[*] are in percent of image dimensions (x, y, w, h in 0..100).',
+      'layout_rollup entries collapse per-image boxes into one template per size/variant — the generator consumes this.',
+      '320x50: no finished Canva reference — layout will be derived by scaling 320x100 at generator build time.',
+    ],
+  };
+}
+
+// --- Bootstrap ---
+buildAnnoBar();
+buildLegend();
+renderCatalog();
+</script>
 </body>
 </html>

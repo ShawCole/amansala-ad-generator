@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amansala Ads · Reference & Spec Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Nunito+Sans:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F5F0E8;
+    --sand: #E8DCC9;
+    --tan: #B79D85;
+    --espresso: #574A3F;
+    --near-black: #362F28;
+    --ink: #1f1a15;
+    --accent-headline: #E27F7F;
+    --accent-subtitle: #F2C94C;
+    --accent-body: #56CCF2;
+    --accent-logo: #27AE60;
+    --accent-cta: #BB6BD9;
+    --accent-fade: #9E9E9E;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Nunito Sans', system-ui, sans-serif;
+    --font-headline: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); font-family: var(--font-sans); }
+  body { display: grid; grid-template-columns: 340px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px;
+    background: var(--near-black); color: var(--cream);
+    border-bottom: 1px solid #1f1a15;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar h1 { font-family: var(--font-headline); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: 0.01em; }
+  .topbar .tag { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--tan); padding: 3px 10px; border: 1px solid var(--tan); border-radius: 999px; }
+  .topbar .actions { margin-left: auto; display: flex; gap: 10px; }
+  .btn { font-family: var(--font-sans); background: var(--tan); color: var(--ink); border: none; padding: 8px 14px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--cream); border: 1px solid var(--tan); }
+  .btn:hover { filter: brightness(1.08); }
+
+  .sidebar { background: #EAE0CF; border-right: 1px solid var(--tan); padding: 20px; overflow-y: auto; max-height: calc(100vh - 58px); position: sticky; top: 58px; }
+  .sidebar h2 { font-family: var(--font-headline); font-weight: 600; font-size: 15px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--espresso); margin: 0 0 6px; }
+  .sidebar .section { background: var(--cream); padding: 14px; border-radius: 6px; margin-bottom: 14px; border: 1px solid var(--sand); }
+  .sidebar .section h3 { margin: 0 0 10px; font-family: var(--font-sans); font-weight: 700; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--espresso); display: flex; align-items: center; gap: 8px; }
+  .sidebar label { display: block; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); margin-bottom: 4px; font-weight: 700; }
+  .sidebar input[type="text"], .sidebar textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--sand); border-radius: 4px; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: #fff; margin-bottom: 10px; resize: vertical; }
+  .sidebar textarea { min-height: 56px; line-height: 1.35; }
+  .sidebar select { width: 100%; padding: 8px 10px; border: 1px solid var(--sand); border-radius: 4px; background: #fff; font-family: var(--font-sans); font-size: 13px; margin-bottom: 10px; }
+  .swatch-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--sand); background: #fff; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: 600; }
+  .swatch.active { background: var(--espresso); color: var(--cream); border-color: var(--espresso); }
+  .dot-12 { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+  .legend .pill { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+
+  main { padding: 28px 36px 120px; overflow-x: hidden; }
+  .intro { background: #fff; border: 1px solid var(--sand); border-radius: 8px; padding: 18px 22px; margin-bottom: 24px; max-width: 900px; }
+  .intro p { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: var(--espresso); }
+  .intro p:last-child { margin-bottom: 0; }
+  .intro strong { color: var(--near-black); }
+
+  .size-group { margin-bottom: 40px; }
+  .size-group > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--sand); }
+  .size-group h2 { font-family: var(--font-headline); font-weight: 600; font-size: 22px; margin: 0; color: var(--near-black); }
+  .size-group .dims { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); }
+  .size-group .count { margin-left: auto; font-size: 11px; color: var(--espresso); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .variant-group { margin-bottom: 28px; }
+  .variant-group h3 { font-family: var(--font-sans); font-weight: 700; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--espresso); margin: 0 0 12px; }
+  .variant-group h3 .note { font-weight: 400; letter-spacing: 0.05em; text-transform: none; color: var(--tan); margin-left: 8px; font-size: 11px; }
+
+  .ads-grid { display: flex; flex-wrap: wrap; gap: 18px; }
+  .ad-wrap { position: relative; background: #fff; border: 1px solid var(--sand); border-radius: 6px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+  .ad-wrap.active { border-color: var(--espresso); box-shadow: 0 4px 16px rgba(55,74,63,0.15); }
+  .ad-wrap.has-annotations::after { content: '●'; position: absolute; top: 4px; right: 6px; color: var(--accent-logo); font-size: 10px; }
+  .ad-wrap .label { font-size: 10px; font-weight: 700; color: var(--tan); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; text-align: center; }
+  .ad-inner { position: relative; }
+  .ad-inner img { display: block; max-width: 100%; user-select: none; -webkit-user-drag: none; }
+  .ad-inner svg.overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .ad-wrap.active .ad-inner svg.overlay { pointer-events: auto; cursor: crosshair; }
+  .box-rect { fill: rgba(0,0,0,0); stroke-width: 2; stroke-dasharray: 4 3; pointer-events: auto; cursor: move; }
+  .box-rect.selected { stroke-width: 3; stroke-dasharray: none; fill: rgba(0,0,0,0.08); }
+  .box-handle { fill: #fff; stroke: var(--near-black); stroke-width: 1.2; cursor: nwse-resize; }
+  .box-label { font-family: var(--font-sans); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; fill: #fff; }
+
+  .annotation-bar { position: sticky; top: 58px; z-index: 40; background: var(--near-black); color: var(--cream); padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
+  .annotation-bar .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  .annotation-bar .chip.active { background: var(--tan); color: var(--ink); border-color: var(--tan); }
+  .annotation-bar .chip .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .annotation-bar .status { margin-left: auto; color: var(--sand); font-size: 11px; letter-spacing: 0.08em; }
+
+  .data-gap { background: #fff4e4; border: 1px dashed #d79a3a; color: #a15e10; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Amansala · Reference & Spec Editor</h1>
+  <span class="tag">mockup</span>
+  <div class="actions">
+    <button class="btn ghost" id="loadSpecBtn">Load spec.json</button>
+    <button class="btn ghost" id="clearBtn">Clear annotations</button>
+    <button class="btn" id="saveSpecBtn">Export spec.json</button>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <h2 style="margin-bottom:14px;">Element Vocabulary</h2>
+  <p style="font-size:12px; color:var(--espresso); margin:0 0 14px; line-height:1.45;">
+    These text boxes are the <strong>input surface</strong> for the final generator. They don't edit the reference images — the images are Canva final output, frozen as truth. Typing here doesn't change them.
+  </p>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-headline)"></span> Headline</h3>
+    <label>Text (use \n for line breaks)</label>
+    <textarea id="in-headline">bikini
+bootcamp</textarea>
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-subtitle)"></span> Subtitle</h3>
+    <label>Text</label>
+    <input type="text" id="in-subtitle" value="A VACATION WITH A PURPOSE" />
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-body)"></span> Body</h3>
+    <label>Text</label>
+    <textarea id="in-body">THE ULTIMATE
+MIND BODY SPIRIT
+TUNE UP.
+
+WORK OUT, EAT FRESH
+N HEALTHY AND GET
+PAMPERED
+ON THE BEACH.</textarea>
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-logo)"></span> Logo / Wordmark</h3>
+    <label>Variant</label>
+    <div class="swatch-row" id="logoSwatches">
+      <div class="swatch active" data-logo="palm-white">Palm (white)</div>
+      <div class="swatch" data-logo="palm-gold">Palm (gold)</div>
+      <div class="swatch" data-logo="palm-black">Palm (black)</div>
+      <div class="swatch" data-logo="wordmark-amansala-tulum">AMANSALA Tulum</div>
+      <div class="swatch" data-logo="wordmark-amansala">AMANSALA</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-cta)"></span> CTA / Accent</h3>
+    <label>Optional text</label>
+    <input type="text" id="in-cta" value="" placeholder="(often absent)" />
+  </div>
+
+  <div class="section">
+    <h3><span class="dot-12" style="background:var(--accent-fade)"></span> Fade / Overlay</h3>
+    <label>Direction</label>
+    <select id="in-fade">
+      <option value="none">None</option>
+      <option value="top" selected>From top</option>
+      <option value="bottom">From bottom</option>
+      <option value="both">Both edges</option>
+      <option value="center-band">Center band (160×600 split)</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <h3>Annotation Legend</h3>
+    <div class="legend" id="annoLegend"></div>
+  </div>
+</aside>
+
+<main>
+  <div class="intro">
+    <p><strong>What this page is.</strong> Every finished Canva ad Paulina built, grouped by size. The sidebar on the left shows the <em>element vocabulary</em> — the real generator will drive these 6 fields. The images here are frozen final output, for reverse-engineering only.</p>
+    <p><strong>How to annotate.</strong> Click any ad → pick an element type in the annotation bar below → drag on the image to draw its bounding box. Right-click a box to delete. Drag the corner handle to resize. Export <code>spec.json</code> when done.</p>
+    <p><strong>Layout variants.</strong> Some sizes have multiple layout variants (full text / no subtitle / logo only / template). The <em>element presence matrix</em> — which fields appear in which variant — is what we're capturing.</p>
+  </div>
+
+  <div class="annotation-bar" id="annoBar"></div>
+
+  <div id="catalog"></div>
+</main>
+
+<input type="file" id="loadFileInput" accept=".json" style="display:none" />
+
+<script>
+const CATALOG = [
+  {
+    size: '300x250', w: 300, h: 250, label: '300 × 250 — Medium Rectangle',
+    variants: [
+      { group: 'finished', label: 'Finished (headline + subtitle over photo)', items: [1,2,3,4].map(n => ({ src: 'references/300x250/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '300x600', w: 300, h: 600, label: '300 × 600 — Half-Page',
+    variants: [
+      { group: 'finished', label: 'Full layout (headline + subtitle + body)', items: range(1,13).map(n => ({ src: 'references/300x600/' + n + '.png', name: '#' + n })) },
+      { group: 'no-subtitle', label: 'Headline + logo (no subtitle, no body)', items: range(1,13).map(n => ({ src: 'references/300x600-no-subtitle/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only with fade', items: [1,2,3].map(n => ({ src: 'references/300x600-logo-only/' + n + '.png', name: '#' + n })) },
+      { group: 'fade-template', label: 'Empty template (no text, fade applied)', items: range(1,13).map(n => ({ src: 'references/300x600-fade-template/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '160x600', w: 160, h: 600, label: '160 × 600 — Wide Skyscraper',
+    variants: [
+      { group: 'finished', label: 'Finished (photo + text band + photo)', items: range(1,8).map(n => ({ src: 'references/160x600/' + n + '.png', name: '#' + n })) },
+      { group: 'template', label: 'Empty template (solid center band, no text)', items: range(1,8).map(n => ({ src: 'references/160x600-template/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '728x90', w: 728, h: 90, label: '728 × 90 — Leaderboard',
+    variants: [
+      { group: 'finished', label: 'Finished (photo montage + text panel)', items: [1,2,3].map(n => ({ src: 'references/728x90/' + n + '.png', name: '#' + n })) },
+      { group: 'logo-only', label: 'Logo only', items: [1,2,3].map(n => ({ src: 'references/728x90-logo-only/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '320x100', w: 320, h: 100, label: '320 × 100 — Large Mobile Banner',
+    variants: [
+      { group: 'finished', label: 'Finished (photo + solid text panel)', items: [1,2,3].map(n => ({ src: 'references/320x100/' + n + '.png', name: '#' + n })) },
+    ]
+  },
+  {
+    size: '320x50', w: 320, h: 50, label: '320 × 50 — Mobile Banner',
+    variants: [],
+    gap: 'No finished 320×50 reference exists in the Canva source. Generator will derive layout by scaling the 320×100 pattern.'
+  },
+];
+function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
+
+const TOOLS = {
+  headline: { label: 'headline', stroke: '#E27F7F' },
+  subtitle: { label: 'subtitle', stroke: '#F2C94C' },
+  body:     { label: 'body',     stroke: '#56CCF2' },
+  logo:     { label: 'logo',     stroke: '#27AE60' },
+  cta:      { label: 'cta',      stroke: '#BB6BD9' },
+  fade:     { label: 'fade',     stroke: '#9E9E9E' },
+};
+
+const STORAGE_KEY = 'amansala-ad-spec-v1';
+let annotations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let activeAdEl = null;
+let activeSrc = null;
+let currentTool = 'headline';
+let sidebarState = {
+  headline: 'bikini\nbootcamp',
+  subtitle: 'A VACATION WITH A PURPOSE',
+  body: '',
+  logo: 'palm-white',
+  cta: '',
+  fade: 'top',
+};
+
+function saveLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(annotations)); }
+
+// --- Build annotation bar ---
+function buildAnnoBar() {
+  const bar = document.getElementById('annoBar');
+  bar.replaceChildren();
+  const label = document.createElement('span');
+  label.style.cssText = 'font-weight:700; letter-spacing:0.08em; font-size:10px; text-transform:uppercase;';
+  label.textContent = 'Drawing mode:';
+  bar.appendChild(label);
+  for (const [key, tool] of Object.entries(TOOLS)) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (key === currentTool ? ' active' : '');
+    chip.dataset.tool = key;
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = tool.stroke;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(tool.label.charAt(0).toUpperCase() + tool.label.slice(1)));
+    chip.addEventListener('click', () => {
+      currentTool = key;
+      buildAnnoBar();
+      updateStatus();
+    });
+    bar.appendChild(chip);
+  }
+  const status = document.createElement('span');
+  status.className = 'status';
+  status.id = 'annoStatus';
+  status.textContent = activeAdEl ? `Active: ${activeAdEl.dataset.size} · ${activeAdEl.dataset.variant} — drag to draw a ${currentTool} box` : `Drawing mode: ${currentTool} · click an ad to start`;
+  bar.appendChild(status);
+}
+function updateStatus() {
+  const s = document.getElementById('annoStatus');
+  if (!s) return;
+  s.textContent = activeAdEl ? `Active: ${activeAdEl.dataset.size} · ${activeAdEl.dataset.variant} — drag to draw a ${currentTool} box` : `Drawing mode: ${currentTool} · click an ad to start`;
+}
+
+// --- Build sidebar legend ---
+function buildLegend() {
+  const el = document.getElementById('annoLegend');
+  el.replaceChildren();
+  for (const [key, tool] of Object.entries(TOOLS)) {
+    const pill = document.createElement('div');
+    pill.className = 'pill';
+    const dot = document.createElement('span');
+    dot.className = 'dot-12';
+    dot.style.background = tool.stroke;
+    pill.appendChild(dot);
+    pill.appendChild(document.createTextNode(tool.label));
+    el.appendChild(pill);
+  }
+}
+
+// --- Render catalog ---
+function renderCatalog() {
+  const root = document.getElementById('catalog');
+  root.replaceChildren();
+  for (const size of CATALOG) {
+    const sec = document.createElement('section');
+    sec.className = 'size-group';
+    const header = document.createElement('header');
+    const h2 = document.createElement('h2');
+    h2.textContent = size.label;
+    header.appendChild(h2);
+    const dims = document.createElement('span');
+    dims.className = 'dims';
+    dims.textContent = `native ${size.w}×${size.h}`;
+    header.appendChild(dims);
+    const totalCount = (size.variants || []).reduce((a, v) => a + v.items.length, 0);
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = `${totalCount} references`;
+    header.appendChild(count);
+    sec.appendChild(header);
+
+    if (size.gap) {
+      const gap = document.createElement('div');
+      gap.className = 'data-gap';
+      gap.textContent = size.gap;
+      sec.appendChild(gap);
+    }
+    for (const variant of (size.variants || [])) {
+      const vg = document.createElement('div');
+      vg.className = 'variant-group';
+      const h3 = document.createElement('h3');
+      h3.textContent = variant.label + ' ';
+      const note = document.createElement('span');
+      note.className = 'note';
+      note.textContent = `${variant.items.length} variants`;
+      h3.appendChild(note);
+      vg.appendChild(h3);
+      const grid = document.createElement('div');
+      grid.className = 'ads-grid';
+      for (const item of variant.items) {
+        const ad = document.createElement('div');
+        ad.className = 'ad-wrap';
+        ad.dataset.src = item.src;
+        ad.dataset.size = size.size;
+        ad.dataset.variant = variant.group;
+        ad.style.width = (size.w <= 320 ? size.w : Math.min(size.w, 480)) + 'px';
+        const inner = document.createElement('div');
+        inner.className = 'ad-inner';
+        inner.style.aspectRatio = `${size.w}/${size.h}`;
+        const img = document.createElement('img');
+        img.src = item.src;
+        img.alt = item.name;
+        img.draggable = false;
+        inner.appendChild(img);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('class','overlay');
+        svg.setAttribute('viewBox', `0 0 ${size.w} ${size.h}`);
+        svg.setAttribute('preserveAspectRatio','none');
+        inner.appendChild(svg);
+        ad.appendChild(inner);
+        const lbl = document.createElement('div');
+        lbl.className = 'label';
+        lbl.textContent = item.name;
+        ad.appendChild(lbl);
+        ad.addEventListener('click', (e) => onAdClick(ad, size, variant, item, e));
+        grid.appendChild(ad);
+      }
+      vg.appendChild(grid);
+      sec.appendChild(vg);
+    }
+    root.appendChild(sec);
+  }
+  for (const src of Object.keys(annotations)) markHasAnnotations(src);
+  refreshActiveSvg();
+}
+
+function markHasAnnotations(src) {
+  const wrap = document.querySelector(`.ad-wrap[data-src="${CSS.escape(src)}"]`);
+  if (!wrap) return;
+  if ((annotations[src] || []).length > 0) wrap.classList.add('has-annotations');
+  else wrap.classList.remove('has-annotations');
+}
+
+function onAdClick(ad, size, variant, item, e) {
+  if (e.target.closest('.box-rect, .box-handle')) return;
+  if (activeAdEl && activeAdEl !== ad) activeAdEl.classList.remove('active');
+  activeAdEl = ad;
+  activeSrc = item.src;
+  ad.classList.add('active');
+  updateStatus();
+  refreshActiveSvg();
+}
+
+function svgRect(attrs) {
+  const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  for (const [k,v] of Object.entries(attrs)) r.setAttribute(k, v);
+  return r;
+}
+function svgText(attrs, text) {
+  const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+  for (const [k,v] of Object.entries(attrs)) t.setAttribute(k, v);
+  t.textContent = text;
+  return t;
+}
+
+function refreshActiveSvg() {
+  for (const wrap of document.querySelectorAll('.ad-wrap')) {
+    const src = wrap.dataset.src;
+    const svg = wrap.querySelector('svg.overlay');
+    svg.replaceChildren();
+    const boxes = annotations[src] || [];
+    const vb = svg.viewBox.baseVal;
+    boxes.forEach((b, idx) => {
+      const x = (b.x / 100) * vb.width;
+      const y = (b.y / 100) * vb.height;
+      const w = (b.w / 100) * vb.width;
+      const h = (b.h / 100) * vb.height;
+      const stroke = TOOLS[b.tool]?.stroke || '#000';
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.appendChild(svgRect({ class: 'box-rect', x, y, width: w, height: h, stroke, 'data-idx': idx }));
+      g.appendChild(svgRect({ class: 'box-label-bg', x, y: Math.max(0, y - 11), width: Math.min(w, 60), height: 11, fill: stroke, rx: 2, ry: 2 }));
+      g.appendChild(svgText({ class: 'box-label', x: x + 3, y: Math.max(9, y - 2) }, b.tool));
+      if (wrap === activeAdEl) {
+        g.appendChild(svgRect({ class: 'box-handle', x: x + w - 4, y: y + h - 4, width: 8, height: 8, 'data-handle': idx }));
+      }
+      svg.appendChild(g);
+    });
+  }
+  attachBoxHandlers();
+}
+
+function attachBoxHandlers() {
+  if (!activeAdEl) return;
+  const svg = activeAdEl.querySelector('svg.overlay');
+  const src = activeAdEl.dataset.src;
+  svg.onmousedown = (ev) => {
+    if (ev.button !== 0) return;
+    if (ev.target.classList.contains('box-rect') || ev.target.classList.contains('box-handle')) return;
+    ev.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const scaleX = vb.width / rect.width;
+    const scaleY = vb.height / rect.height;
+    const startX = (ev.clientX - rect.left) * scaleX;
+    const startY = (ev.clientY - rect.top) * scaleY;
+    const stroke = TOOLS[currentTool].stroke;
+    const temp = svgRect({ class: 'box-rect selected', x: startX, y: startY, width: 0, height: 0, stroke });
+    svg.appendChild(temp);
+    function move(e2) {
+      const cx = (e2.clientX - rect.left) * scaleX;
+      const cy = (e2.clientY - rect.top) * scaleY;
+      const x = Math.min(startX, cx), y = Math.min(startY, cy);
+      const w = Math.abs(cx - startX), h = Math.abs(cy - startY);
+      temp.setAttribute('x', x); temp.setAttribute('y', y);
+      temp.setAttribute('width', w); temp.setAttribute('height', h);
+    }
+    function up() {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      const x = parseFloat(temp.getAttribute('x'));
+      const y = parseFloat(temp.getAttribute('y'));
+      const w = parseFloat(temp.getAttribute('width'));
+      const h = parseFloat(temp.getAttribute('height'));
+      if (w < 3 || h < 3) { temp.remove(); return; }
+      annotations[src] = annotations[src] || [];
+      annotations[src].push({
+        tool: currentTool,
+        x: (x / vb.width) * 100,
+        y: (y / vb.height) * 100,
+        w: (w / vb.width) * 100,
+        h: (h / vb.height) * 100,
+      });
+      saveLocal();
+      markHasAnnotations(src);
+      refreshActiveSvg();
+    }
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  svg.addEventListener('contextmenu', (ev) => {
+    if (!ev.target.classList.contains('box-rect')) return;
+    ev.preventDefault();
+    const idx = parseInt(ev.target.dataset.idx, 10);
+    annotations[src].splice(idx, 1);
+    if (annotations[src].length === 0) delete annotations[src];
+    saveLocal();
+    markHasAnnotations(src);
+    refreshActiveSvg();
+  });
+  svg.querySelectorAll('.box-rect').forEach(r => {
+    r.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();
+      const idx = parseInt(r.dataset.idx, 10);
+      const box = annotations[src][idx];
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const scaleX = vb.width / rect.width;
+      const scaleY = vb.height / rect.height;
+      const startMouseX = ev.clientX;
+      const startMouseY = ev.clientY;
+      const startBoxX = box.x, startBoxY = box.y;
+      function move(e2) {
+        const dx = (e2.clientX - startMouseX) * scaleX / vb.width * 100;
+        const dy = (e2.clientY - startMouseY) * scaleY / vb.height * 100;
+        box.x = Math.max(0, Math.min(100 - box.w, startBoxX + dx));
+        box.y = Math.max(0, Math.min(100 - box.h, startBoxY + dy));
+        refreshActiveSvg();
+      }
+      function up() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        saveLocal();
+      }
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+  });
+  svg.querySelectorAll('.box-handle').forEach(h => {
+    h.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();
+      const idx = parseInt(h.dataset.handle, 10);
+      const box = annotations[src][idx];
+      const rect = svg.getBoundingClientRect();
+      const vb = svg.viewBox.baseVal;
+      const scaleX = vb.width / rect.width;
+      const scaleY = vb.height / rect.height;
+      const startMouseX = ev.clientX;
+      const startMouseY = ev.clientY;
+      const startW = box.w, startH = box.h;
+      function move(e2) {
+        const dw = (e2.clientX - startMouseX) * scaleX / vb.width * 100;
+        const dh = (e2.clientY - startMouseY) * scaleY / vb.height * 100;
+        box.w = Math.max(1, Math.min(100 - box.x, startW + dw));
+        box.h = Math.max(1, Math.min(100 - box.y, startH + dh));
+        refreshActiveSvg();
+      }
+      function up() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        saveLocal();
+      }
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+  });
+}
+
+// --- Logo swatch ---
+document.querySelectorAll('#logoSwatches .swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#logoSwatches .swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    sidebarState.logo = sw.dataset.logo;
+  });
+});
+
+// --- Sidebar input sync ---
+['headline','subtitle','body','cta','fade'].forEach(k => {
+  const el = document.getElementById('in-' + k);
+  if (!el) return;
+  el.addEventListener('input', () => { sidebarState[k] = el.value; });
+});
+
+// --- Export / import ---
+document.getElementById('saveSpecBtn').addEventListener('click', () => {
+  const spec = buildSpec();
+  const blob = new Blob([JSON.stringify(spec, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'spec.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('loadSpecBtn').addEventListener('click', () => {
+  document.getElementById('loadFileInput').click();
+});
+document.getElementById('loadFileInput').addEventListener('change', (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const spec = JSON.parse(e.target.result);
+      if (spec && spec.annotations) {
+        annotations = spec.annotations;
+        saveLocal();
+        renderCatalog();
+        alert('Spec loaded. ' + Object.keys(annotations).length + ' ads have annotations.');
+      }
+    } catch (err) { alert('Invalid spec.json: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all annotations? This cannot be undone.')) return;
+  annotations = {};
+  saveLocal();
+  renderCatalog();
+});
+
+function buildSpec() {
+  const perImage = annotations;
+  const rollup = {};
+  for (const size of CATALOG) {
+    for (const variant of (size.variants || [])) {
+      const key = `${size.size}:${variant.group}`;
+      const imageKeys = variant.items.map(it => it.src).filter(s => perImage[s]);
+      if (imageKeys.length === 0) continue;
+      const byTool = {};
+      for (const src of imageKeys) {
+        for (const b of perImage[src]) {
+          byTool[b.tool] = byTool[b.tool] || [];
+          byTool[b.tool].push(b);
+        }
+      }
+      const avg = {};
+      for (const tool of Object.keys(byTool)) {
+        const arr = byTool[tool];
+        const m = (k) => arr.reduce((a,x)=>a+x[k],0) / arr.length;
+        avg[tool] = { x: +m('x').toFixed(2), y: +m('y').toFixed(2), w: +m('w').toFixed(2), h: +m('h').toFixed(2), samples: arr.length };
+      }
+      rollup[key] = {
+        size: size.size,
+        variant: variant.group,
+        width: size.w,
+        height: size.h,
+        element_presence: Object.keys(avg),
+        element_boxes_pct: avg,
+        source_image_count: imageKeys.length,
+      };
+    }
+  }
+  return {
+    version: 1,
+    generated_at: new Date().toISOString(),
+    sidebar_vocabulary: sidebarState,
+    annotations: perImage,
+    layout_rollup: rollup,
+    notes: [
+      'annotations[*] are in percent of image dimensions (x, y, w, h in 0..100).',
+      'layout_rollup entries collapse per-image boxes into one template per size/variant — the generator consumes this.',
+      '320x50: no finished Canva reference — layout will be derived by scaling 320x100 at generator build time.',
+    ],
+  };
+}
+
+// --- Bootstrap ---
+buildAnnoBar();
+buildLegend();
+renderCatalog();
+</script>
+</body>
+</html>

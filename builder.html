@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Amansala · Ad Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Allura&family=Great+Vibes&family=Parisienne&family=Pinyon+Script&family=Sacramento&family=Anton&family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Nunito+Sans:wght@200;300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  :root {
+    --cream: #F5F0E8;
+    --sand: #E8DCC9;
+    --tan: #B79D85;
+    --espresso: #574A3F;
+    --near-black: #362F28;
+    --ink: #1f1a15;
+    --panel-pink: #EFC9CA;
+    --panel-blue: #B8DCE0;
+    --panel-tan: #D9C5A8;
+    --panel-slate: #708A8A;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); font-family: 'Nunito Sans', system-ui, sans-serif; }
+  body { display: grid; grid-template-columns: 360px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+  .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 14px 22px; background: var(--near-black); color: var(--cream); position: sticky; top: 0; z-index: 50; }
+  .topbar h1 { font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 18px; margin: 0; letter-spacing: 0.18em; text-transform: uppercase; }
+  .topbar .tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--tan); padding: 3px 10px; border: 1px solid var(--tan); border-radius: 999px; }
+  .topbar .actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .topbar select { background: transparent; color: var(--cream); border: 1px solid var(--tan); padding: 6px 10px; font-size: 11px; border-radius: 4px; font-family: inherit; letter-spacing: 0.08em; text-transform: uppercase; }
+  .topbar select option { background: var(--near-black); color: var(--cream); }
+  .btn { font-family: inherit; background: var(--tan); color: var(--ink); border: none; padding: 10px 18px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; border-radius: 4px; cursor: pointer; font-weight: 700; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: 0.5; cursor: progress; }
+  .btn.ghost { background: transparent; color: var(--cream); border: 1px solid var(--tan); }
+
+  .sidebar { background: #EAE0CF; border-right: 1px solid var(--tan); padding: 20px; overflow-y: auto; max-height: calc(100vh - 58px); position: sticky; top: 58px; }
+  .sidebar .section { background: var(--cream); padding: 14px; border-radius: 6px; margin-bottom: 14px; border: 1px solid var(--sand); }
+  .sidebar .section h3 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--espresso); font-weight: 700; }
+  .sidebar label { display: block; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); margin: 8px 0 4px; font-weight: 700; }
+  .sidebar input[type="text"], .sidebar textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--sand); border-radius: 4px; font-family: inherit; font-size: 13px; color: var(--ink); background: #fff; resize: vertical; }
+  .sidebar textarea { min-height: 60px; line-height: 1.35; }
+
+  .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .photo-grid label { padding: 0; margin: 0; cursor: pointer; position: relative; }
+  .photo-grid input { display: none; }
+  .photo-grid img { width: 100%; aspect-ratio: 1/2; object-fit: cover; display: block; border-radius: 3px; border: 2px solid transparent; opacity: 0.55; transition: opacity 0.12s, border-color 0.12s; }
+  .photo-grid input:checked + img { opacity: 1; border-color: var(--espresso); }
+  .photo-grid .badge { position: absolute; top: 2px; right: 2px; background: var(--espresso); color: var(--cream); font-size: 9px; padding: 1px 4px; border-radius: 2px; opacity: 0; }
+  .photo-grid input:checked ~ .badge { opacity: 1; }
+
+  .panel-swatches { display: flex; gap: 6px; margin-top: 6px; }
+  .panel-swatch { width: 28px; height: 28px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; }
+  .panel-swatch.active { border-color: var(--espresso); }
+
+  main { padding: 24px 30px 120px; overflow: auto; }
+  .intro { background: #fff; border: 1px solid var(--sand); padding: 12px 18px; border-radius: 6px; margin-bottom: 24px; font-size: 13px; line-height: 1.5; color: var(--espresso); }
+
+  .size-section { margin-bottom: 36px; }
+  .size-section > header { display: flex; align-items: baseline; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--sand); margin-bottom: 14px; }
+  .size-section h2 { font-family: 'Oswald'; font-weight: 500; font-size: 18px; margin: 0; color: var(--near-black); letter-spacing: 0.06em; text-transform: uppercase; }
+  .size-section .dims { font-size: 11px; color: var(--tan); letter-spacing: 0.12em; }
+  .size-section .ele-tags { margin-left: auto; display: flex; gap: 6px; }
+  .size-section .ele-tag { font-size: 9px; padding: 2px 7px; border-radius: 999px; background: var(--cream); color: var(--espresso); letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--sand); }
+
+  .ads-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .ad-card { background: #fff; padding: 6px; border: 1px solid var(--sand); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+
+  .ad { position: relative; overflow: hidden; transform-origin: top left; }
+  .ad .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .ad .fade-top { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0) 50%); pointer-events: none; }
+  .ad .fade-bottom { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0) 55%); pointer-events: none; }
+  .ad .panel { position: absolute; }
+  .ad .el { position: absolute; color: #fff; text-align: center; line-height: 1.0; white-space: pre-wrap; }
+  .ad .el-script { font-family: 'Pinyon Script', cursive; font-weight: 400; }
+  .ad .el-display { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: uppercase; }
+  .ad .el-subtitle { font-family: 'Nunito Sans', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.22em; }
+  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.35; }
+  .ad .el-logo { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3em; }
+
+  .ad-card .meta { font-size: 9px; color: var(--tan); margin-top: 6px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+
+  .progress { position: fixed; right: 24px; bottom: 24px; background: var(--near-black); color: var(--cream); padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.2); display: none; }
+  .progress.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Amansala · Ad Builder</h1>
+  <span class="tag">live preview · all 7 sizes</span>
+  <div class="actions">
+    <label style="font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--tan);">Script</label>
+    <select id="fontScript">
+      <option value="Pinyon Script" selected>Pinyon Script</option>
+      <option value="Great Vibes">Great Vibes</option>
+      <option value="Allura">Allura</option>
+      <option value="Parisienne">Parisienne</option>
+      <option value="Sacramento">Sacramento</option>
+    </select>
+    <label style="font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--tan);">Display</label>
+    <select id="fontDisplay">
+      <option value="Oswald" selected>Oswald</option>
+      <option value="Anton">Anton</option>
+      <option value="Bebas Neue">Bebas Neue</option>
+      <option value="Archivo">Archivo</option>
+    </select>
+    <button class="btn" id="exportBtn">Export ZIP</button>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="section">
+    <h3>Campaign Text</h3>
+    <label>Script headline</label>
+    <input type="text" id="in-script" value="Bikini" />
+    <label>Display headline</label>
+    <input type="text" id="in-display" value="Bootcamp" />
+    <label>Subtitle</label>
+    <input type="text" id="in-subtitle" value="A vacation with a purpose" />
+    <label>Body (multi-line)</label>
+    <textarea id="in-body">The ultimate
+mind body spirit
+tune up.
+
+Work out, eat fresh
+n healthy and get
+pampered
+on the beach.</textarea>
+    <label>Logo wordmark</label>
+    <input type="text" id="in-logo" value="Amansala" />
+    <label>Tulum line (320×50 only)</label>
+    <input type="text" id="in-tulum" value="Tulum" />
+  </div>
+
+  <div class="section">
+    <h3>Photos (pick which to render)</h3>
+    <div class="photo-grid" id="photoGrid"></div>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <button class="btn" style="flex:1; padding:6px;" id="selectAll">All</button>
+      <button class="btn ghost" style="flex:1; padding:6px; background:#fff; color:var(--ink); border-color:var(--sand);" id="selectNone">None</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Panel color (for split layouts)</h3>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 8px;">160×600, 728×90, 320×100 use a solid panel behind text.</p>
+    <div class="panel-swatches" id="panelSwatches">
+      <div class="panel-swatch active" style="background:var(--panel-pink)" data-color="#EFC9CA"></div>
+      <div class="panel-swatch" style="background:var(--panel-blue)" data-color="#B8DCE0"></div>
+      <div class="panel-swatch" style="background:var(--panel-tan)" data-color="#D9C5A8"></div>
+      <div class="panel-swatch" style="background:var(--panel-slate)" data-color="#708A8A"></div>
+      <div class="panel-swatch" style="background:#574A3F" data-color="#574A3F"></div>
+    </div>
+  </div>
+</aside>
+
+<main>
+  <div class="intro">
+    <strong>How this works.</strong> Type campaign text on the left, pick which photos to render. Every selected photo generates ads at all 7 DSP sizes — element presence varies per size (300×600 = full text, 320×50 = wordmark + script line only). Click <strong>Export ZIP</strong> for one PNG per photo per size, organized into folders.
+  </div>
+
+  <div id="grid"></div>
+</main>
+
+<div class="progress" id="progress">Rendering…</div>
+
+<script>
+const PHOTOS = Array.from({length:13},(_,i)=>({ id: i+1, src: 'assets/photos/' + (i+1) + '.png' }));
+
+const SIZES = [
+  {
+    id: '300x250', w: 300, h: 250, label: 'Medium Rectangle',
+    fade: 'bottom',
+    elements: {
+      script:   { x: 50, y: 50, w: 90, h: 22, size: 56, lh: 0.85, align: 'center' },
+      display:  { x: 50, y: 70, w: 90, h: 14, size: 30, lh: 1.0,  align: 'center' },
+      subtitle: { x: 50, y: 86, w: 90, h: 6,  size: 9,  lh: 1.0,  align: 'center' },
+    }
+  },
+  {
+    id: '300x600', w: 300, h: 600, label: 'Half-Page',
+    fade: 'bottom',
+    elements: {
+      script:   { x: 50, y: 6,  w: 90, h: 14, size: 78, lh: 0.85, align: 'center' },
+      display:  { x: 50, y: 22, w: 90, h: 9,  size: 44, lh: 1.0,  align: 'center' },
+      subtitle: { x: 50, y: 33, w: 90, h: 3,  size: 11, lh: 1.0,  align: 'center' },
+      body:     { x: 50, y: 60, w: 86, h: 28, size: 14, lh: 1.45, align: 'center' },
+      logo:     { x: 50, y: 95, w: 60, h: 4,  size: 14, lh: 1.0,  align: 'center' },
+    }
+  },
+  {
+    id: '160x600', w: 160, h: 600, label: 'Wide Skyscraper',
+    panel: { x: 0, y: 30, w: 100, h: 40 },
+    photoBands: [{ x: 0, y: 0, w: 100, h: 30 }, { x: 0, y: 70, w: 100, h: 30 }],
+    elements: {
+      script:   { x: 50, y: 33, w: 95, h: 12, size: 48, lh: 0.85, align: 'center', color: '#1f1a15' },
+      display:  { x: 50, y: 46, w: 95, h: 5,  size: 22, lh: 1.0,  align: 'center', color: '#1f1a15' },
+      subtitle: { x: 50, y: 53, w: 95, h: 3,  size: 8,  lh: 1.0,  align: 'center', color: '#1f1a15' },
+      body:     { x: 50, y: 58, w: 95, h: 11, size: 9,  lh: 1.4,  align: 'center', color: '#1f1a15' },
+    }
+  },
+  {
+    id: '728x90', w: 728, h: 90, label: 'Leaderboard',
+    panel: { x: 70, y: 0, w: 30, h: 100 },
+    photoBox: { x: 0, y: 0, w: 70, h: 100 },
+    elements: {
+      script:   { x: 85, y: 22, w: 28, h: 35, size: 32, lh: 0.85, align: 'center', color: '#1f1a15' },
+      display:  { x: 85, y: 58, w: 28, h: 18, size: 18, lh: 1.0,  align: 'center', color: '#1f1a15' },
+      subtitle: { x: 85, y: 80, w: 28, h: 8,  size: 7,  lh: 1.0,  align: 'center', color: '#1f1a15' },
+    }
+  },
+  {
+    id: '320x100', w: 320, h: 100, label: 'Mobile Large',
+    panel: { x: 0, y: 0, w: 50, h: 100 },
+    photoBox: { x: 50, y: 0, w: 50, h: 100 },
+    elements: {
+      script:   { x: 25, y: 18, w: 46, h: 35, size: 32, lh: 0.85, align: 'center', color: '#1f1a15' },
+      display:  { x: 25, y: 56, w: 46, h: 18, size: 18, lh: 1.0,  align: 'center', color: '#1f1a15' },
+      subtitle: { x: 25, y: 80, w: 46, h: 8,  size: 7,  lh: 1.0,  align: 'center', color: '#1f1a15' },
+    }
+  },
+  {
+    id: '320x50', w: 320, h: 50, label: 'Mobile Banner',
+    fade: 'wash',
+    customRender: 'banner50',
+    elements: {},
+  },
+];
+
+const state = {
+  scriptText: 'Bikini',
+  displayText: 'Bootcamp',
+  subtitle: 'A vacation with a purpose',
+  body: 'The ultimate\nmind body spirit\ntune up.\n\nWork out, eat fresh\nn healthy and get\npampered\non the beach.',
+  logoText: 'Amansala',
+  tulumText: 'Tulum',
+  selectedPhotos: PHOTOS.map(p => p.id),
+  fontScript: 'Pinyon Script',
+  fontDisplay: 'Oswald',
+  panelColor: '#EFC9CA',
+};
+
+function el(tag, attrs = {}, text) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k === 'className') e.className = v;
+    else if (k === 'dataset') Object.assign(e.dataset, v);
+    else e.setAttribute(k, v);
+  }
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function pos(b) {
+  const align = b.align || 'left';
+  const style = {
+    width: b.w + '%',
+    fontSize: b.size + 'px',
+    lineHeight: b.lh,
+  };
+  if (align === 'center') {
+    style.left = (b.x - b.w / 2) + '%';
+    style.textAlign = 'center';
+  } else {
+    style.left = b.x + '%';
+    style.textAlign = 'left';
+  }
+  style.top = b.y + '%';
+  if (b.color) style.color = b.color;
+  return style;
+}
+
+function buildPhotoGrid() {
+  const grid = document.getElementById('photoGrid');
+  grid.replaceChildren();
+  for (const p of PHOTOS) {
+    const lbl = el('label');
+    const cb = el('input', { type: 'checkbox' });
+    cb.checked = state.selectedPhotos.includes(p.id);
+    cb.addEventListener('change', () => {
+      if (cb.checked && !state.selectedPhotos.includes(p.id)) state.selectedPhotos.push(p.id);
+      else state.selectedPhotos = state.selectedPhotos.filter(id => id !== p.id);
+      renderGrid();
+    });
+    const img = el('img', { src: p.src, alt: '#' + p.id });
+    img.draggable = false;
+    const badge = el('span', { className: 'badge' }, '#' + p.id);
+    lbl.append(cb, img, badge);
+    grid.append(lbl);
+  }
+}
+
+document.getElementById('selectAll').addEventListener('click', () => {
+  state.selectedPhotos = PHOTOS.map(p => p.id);
+  buildPhotoGrid();
+  renderGrid();
+});
+document.getElementById('selectNone').addEventListener('click', () => {
+  state.selectedPhotos = [];
+  buildPhotoGrid();
+  renderGrid();
+});
+
+document.querySelectorAll('#panelSwatches .panel-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#panelSwatches .panel-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    state.panelColor = sw.dataset.color;
+    renderGrid();
+  });
+});
+
+document.getElementById('in-script').addEventListener('input', e => { state.scriptText = e.target.value; renderGrid(); });
+document.getElementById('in-display').addEventListener('input', e => { state.displayText = e.target.value; renderGrid(); });
+document.getElementById('in-subtitle').addEventListener('input', e => { state.subtitle = e.target.value; renderGrid(); });
+document.getElementById('in-body').addEventListener('input', e => { state.body = e.target.value; renderGrid(); });
+document.getElementById('in-logo').addEventListener('input', e => { state.logoText = e.target.value; renderGrid(); });
+document.getElementById('in-tulum').addEventListener('input', e => { state.tulumText = e.target.value; renderGrid(); });
+document.getElementById('fontScript').addEventListener('change', e => { state.fontScript = e.target.value; renderGrid(); });
+document.getElementById('fontDisplay').addEventListener('change', e => { state.fontDisplay = e.target.value; renderGrid(); });
+
+function renderAd(size, photoId) {
+  const photo = PHOTOS.find(p => p.id === photoId);
+  const ad = el('div', { className: 'ad' });
+  ad.style.width = size.w + 'px';
+  ad.style.height = size.h + 'px';
+
+  const maxPreviewW = 480;
+  const scale = size.w > maxPreviewW ? maxPreviewW / size.w : 1;
+  if (scale < 1) {
+    ad.style.transform = `scale(${scale})`;
+    ad.style.marginRight = `${-(size.w - size.w * scale)}px`;
+    ad.style.marginBottom = `${-(size.h - size.h * scale)}px`;
+  }
+
+  if (size.photoBands) {
+    for (const band of size.photoBands) {
+      const img = el('img', { className: 'bg', src: photo.src });
+      Object.assign(img.style, {
+        position: 'absolute',
+        left: band.x + '%', top: band.y + '%',
+        width: band.w + '%', height: band.h + '%',
+        objectFit: 'cover',
+      });
+      ad.append(img);
+    }
+    if (size.panel) {
+      const panel = el('div', { className: 'panel' });
+      Object.assign(panel.style, {
+        left: size.panel.x + '%', top: size.panel.y + '%',
+        width: size.panel.w + '%', height: size.panel.h + '%',
+        background: state.panelColor,
+      });
+      ad.append(panel);
+    }
+  } else if (size.panel && size.photoBox) {
+    const img = el('img', { className: 'bg', src: photo.src });
+    Object.assign(img.style, {
+      position: 'absolute',
+      left: size.photoBox.x + '%', top: size.photoBox.y + '%',
+      width: size.photoBox.w + '%', height: size.photoBox.h + '%',
+      objectFit: 'cover',
+    });
+    ad.append(img);
+    const panel = el('div', { className: 'panel' });
+    Object.assign(panel.style, {
+      left: size.panel.x + '%', top: size.panel.y + '%',
+      width: size.panel.w + '%', height: size.panel.h + '%',
+      background: state.panelColor,
+    });
+    ad.append(panel);
+  } else {
+    const img = el('img', { className: 'bg', src: photo.src });
+    ad.append(img);
+    if (size.fade === 'top') ad.append(el('div', { className: 'fade-top' }));
+    if (size.fade === 'bottom') ad.append(el('div', { className: 'fade-bottom' }));
+    if (size.fade === 'wash') {
+      const wash = el('div', { className: 'fade-bottom' });
+      wash.style.background = 'linear-gradient(to right, rgba(255,255,255,0.65), rgba(255,255,255,0.15))';
+      ad.append(wash);
+    }
+  }
+
+  if (size.customRender === 'banner50') {
+    const left = el('div');
+    Object.assign(left.style, {
+      position: 'absolute', left: '4%', top: '50%', width: '38%',
+      transform: 'translateY(-50%)', textAlign: 'left', color: '#fff',
+    });
+    const logoLine = el('div', {}, state.logoText.toUpperCase());
+    Object.assign(logoLine.style, {
+      fontFamily: `'${state.fontDisplay}', sans-serif`,
+      fontSize: '20px', letterSpacing: '0.18em', lineHeight: '1.0', fontWeight: '500',
+    });
+    const tulumLine = el('div', {}, state.tulumText);
+    Object.assign(tulumLine.style, {
+      fontFamily: `'${state.fontScript}', cursive`,
+      fontSize: '18px', lineHeight: '0.9', marginTop: '-2px', marginLeft: '14px',
+    });
+    left.append(logoLine, tulumLine);
+    ad.append(left);
+    const right = el('div', {}, state.scriptText);
+    Object.assign(right.style, {
+      position: 'absolute', right: '4%', top: '50%', width: '54%',
+      transform: 'translateY(-50%)', textAlign: 'right', color: '#fff',
+      fontFamily: `'${state.fontScript}', cursive`,
+      fontSize: '26px', lineHeight: '1.0',
+    });
+    ad.append(right);
+    return ad;
+  }
+
+  const elements = size.elements || {};
+  for (const [key, layout] of Object.entries(elements)) {
+    if (key === 'script') {
+      const e = el('div', { className: 'el el-script' }, state.scriptText);
+      e.style.fontFamily = `'${state.fontScript}', cursive`;
+      Object.assign(e.style, pos(layout));
+      ad.append(e);
+    } else if (key === 'display') {
+      const e = el('div', { className: 'el el-display' }, state.displayText);
+      e.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
+      Object.assign(e.style, pos(layout));
+      ad.append(e);
+    } else if (key === 'subtitle') {
+      const e = el('div', { className: 'el el-subtitle' }, state.subtitle);
+      Object.assign(e.style, pos(layout));
+      ad.append(e);
+    } else if (key === 'body') {
+      const e = el('div', { className: 'el el-body' }, state.body);
+      Object.assign(e.style, pos(layout));
+      ad.append(e);
+    } else if (key === 'logo') {
+      const e = el('div', { className: 'el el-logo' }, state.logoText);
+      e.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
+      Object.assign(e.style, pos(layout));
+      ad.append(e);
+    }
+  }
+
+  return ad;
+}
+
+function renderGrid() {
+  const root = document.getElementById('grid');
+  root.replaceChildren();
+  if (state.selectedPhotos.length === 0) {
+    const msg = el('div', { className: 'intro' }, 'No photos selected. Pick one or more on the left to start rendering.');
+    root.append(msg);
+    return;
+  }
+  for (const size of SIZES) {
+    const sec = el('section', { className: 'size-section' });
+    const header = el('header');
+    header.append(
+      el('h2', {}, `${size.w} × ${size.h}`),
+      el('span', { className: 'dims' }, size.label),
+    );
+    const tags = el('div', { className: 'ele-tags' });
+    const presence = size.customRender === 'banner50'
+      ? ['logo+tulum', 'script']
+      : Object.keys(size.elements || {});
+    for (const k of presence) tags.append(el('span', { className: 'ele-tag' }, k));
+    header.append(tags);
+    sec.append(header);
+
+    const row = el('div', { className: 'ads-row' });
+    for (const photoId of state.selectedPhotos) {
+      const card = el('div', { className: 'ad-card' });
+      const ad = renderAd(size, photoId);
+      card.append(ad);
+      card.append(el('div', { className: 'meta' }, `photo #${photoId} · ${size.id}`));
+      row.append(card);
+    }
+    sec.append(row);
+    root.append(sec);
+  }
+}
+
+async function exportZip() {
+  const btn = document.getElementById('exportBtn');
+  const progress = document.getElementById('progress');
+  btn.disabled = true;
+  progress.classList.add('visible');
+  const zip = new JSZip();
+  const total = SIZES.length * state.selectedPhotos.length;
+  let done = 0;
+
+  for (const size of SIZES) {
+    const folder = zip.folder(size.id);
+    for (const photoId of state.selectedPhotos) {
+      progress.textContent = `Rendering ${size.id} / photo #${photoId} (${done + 1}/${total})…`;
+      const offscreen = el('div');
+      Object.assign(offscreen.style, {
+        position: 'fixed', left: '-99999px', top: '0',
+        width: size.w + 'px', height: size.h + 'px',
+      });
+      const ad = renderAd(size, photoId);
+      ad.style.transform = '';
+      ad.style.marginRight = '0';
+      ad.style.marginBottom = '0';
+      offscreen.append(ad);
+      document.body.append(offscreen);
+      await new Promise(r => requestAnimationFrame(r));
+      await document.fonts.ready;
+      try {
+        const canvas = await html2canvas(ad, {
+          backgroundColor: null, scale: 2, useCORS: true, logging: false,
+          width: size.w, height: size.h,
+        });
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        folder.file(`${size.id}_photo${photoId}.png`, blob);
+      } catch (err) {
+        console.error('Render failed for', size.id, photoId, err);
+      }
+      offscreen.remove();
+      done++;
+    }
+  }
+
+  progress.textContent = 'Building ZIP…';
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const a = el('a', { href: url, download: `amansala-ads-${Date.now()}.zip` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  progress.classList.remove('visible');
+  btn.disabled = false;
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportZip);
+
+buildPhotoGrid();
+renderGrid();
+</script>
+</body>
+</html>

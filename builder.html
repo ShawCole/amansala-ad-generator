@@ -257,19 +257,20 @@ const SIZES = [
   },
   {
     id: '728x90', w: 728, h: 90, label: 'Leaderboard',
-    layoutType: 'multi-strip',
-    layoutsKey: '728x90',          // looked up in LAYOUTS_728x90 by photoId modulus
+    fade: 'wash',
+    // Single bg photo + logo overlay on the left, matching the 728x90 logo-only reference pattern.
+    // BB headline is too tall for a 90px banner; the AMANSALA logo (palm + wordmark) reads cleanly here.
     elements: [
-      // Headline rendered inside the panel; x/y/w get rewritten per-variant at render time.
-      { type: 'headline', align: 'center', placeOnPanel: true },
+      { type: 'fade', key: 'fadeLogo728', x: 14, y: 50, w: 28, h: 100, direction: 'radial' },
+      { type: 'logo', x: 14, y: 50, w: 18, align: 'center' },
     ],
   },
   {
     id: '320x100', w: 320, h: 100, label: 'Mobile Large',
-    layoutType: 'multi-strip',
-    layoutsKey: '320x100',
+    fade: 'wash',
     elements: [
-      { type: 'headline', align: 'center', placeOnPanel: true },
+      { type: 'fade', key: 'fadeLogo320x100', x: 20, y: 50, w: 38, h: 100, direction: 'radial' },
+      { type: 'logo', x: 20, y: 50, w: 26, align: 'center' },
     ],
   },
   {

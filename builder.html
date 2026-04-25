@@ -76,10 +76,17 @@
   .ad .fade-both { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.45) 100%); pointer-events: none; }
   .ad .wash { position: absolute; inset: 0; background: linear-gradient(to right, rgba(0,0,0,0.18), rgba(0,0,0,0.05)); pointer-events: none; }
 
-  .ad .el { position: absolute; line-height: 1.0; white-space: pre-wrap; }
-  .ad .el-img { position: absolute; object-fit: contain; height: auto; }
-  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; }
+  .ad .el { position: absolute; line-height: 1.0; white-space: pre-wrap; cursor: grab; user-select: none; }
+  .ad .el:active { cursor: grabbing; }
+  .ad .el-img { position: absolute; object-fit: contain; height: auto; cursor: grab; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)) drop-shadow(0 4px 12px rgba(0,0,0,0.25)); }
+  .ad .el-img:active { cursor: grabbing; }
+  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; text-shadow: 0 1px 3px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35); }
   .ad .el-tagline { font-family: 'Nunito Sans', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.18em; }
+  .ad .el-body.panel-text { text-shadow: 0 0 0 transparent; }
+  .ad .el-img.panel-text { filter: none; }
+  .ad .el-selected { outline: 2px dashed #E27F7F; outline-offset: 4px; }
+  .ad-card .reset-btn { display: block; margin: 6px auto 0; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--sand); background: var(--cream); color: var(--espresso); border-radius: 3px; cursor: pointer; font-weight: 700; opacity: 0; transition: opacity 0.15s; }
+  .ad-card.dirty .reset-btn { opacity: 1; }
 
   .progress { position: fixed; right: 24px; bottom: 24px; background: var(--near-black); color: var(--cream); padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.2); display: none; z-index: 100; }
   .progress.visible { display: block; }
@@ -248,7 +255,45 @@ const state = {
   bodyText: 'The ultimate\nmind body spirit\ntune up.\n\nWork out, eat fresh\nn healthy and get\npampered\non the beach.',
   panelColor: '#EFC9CA',
   panelTone: 'dark', // 'dark' = headline inverted, body text dark, for light panels
+  // Per-photo position overrides: overrides[sizeId][photoId][elementType] = {x, y, w}
+  overrides: JSON.parse(localStorage.getItem('amansala-builder-overrides') || '{}'),
 };
+
+let selectedEl = null;
+
+function getOverride(sizeId, photoId, eleType) {
+  return state.overrides?.[sizeId]?.[photoId]?.[eleType];
+}
+function setOverride(sizeId, photoId, eleType, patch) {
+  state.overrides[sizeId] = state.overrides[sizeId] || {};
+  state.overrides[sizeId][photoId] = state.overrides[sizeId][photoId] || {};
+  state.overrides[sizeId][photoId][eleType] = { ...state.overrides[sizeId][photoId][eleType], ...patch };
+  localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
+}
+function clearOverridesFor(sizeId, photoId) {
+  if (state.overrides?.[sizeId]?.[photoId]) {
+    delete state.overrides[sizeId][photoId];
+    localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
+  }
+}
+function hasOverridesFor(sizeId, photoId) {
+  return !!state.overrides?.[sizeId]?.[photoId] && Object.keys(state.overrides[sizeId][photoId]).length > 0;
+}
+function deselectAll() {
+  if (selectedEl) selectedEl.classList.remove('el-selected');
+  selectedEl = null;
+}
+function selectEl(node) {
+  deselectAll();
+  selectedEl = node;
+  node.classList.add('el-selected');
+}
+// Click outside any element to deselect.
+document.addEventListener('mousedown', (ev) => {
+  if (!ev.target.closest('.el, .el-img, .reset-btn, .panel-swatch, .asset-picker label, button, input, textarea, select')) {
+    deselectAll();
+  }
+});
 
 function el(tag, attrs = {}, text) {
   const e = document.createElement(tag);
@@ -306,7 +351,6 @@ function buildLogoPicker() {
 }
 
 function placeImg(node, b) {
-  // Center via translate(-50%,-50%) so x,y refer to the image's center anchor.
   Object.assign(node.style, {
     position: 'absolute',
     width: b.w + '%',
@@ -320,26 +364,66 @@ function placeImg(node, b) {
 
 function placeText(node, b, panelTone) {
   const align = b.align || 'left';
+  // Always use translate(-50%, -50%) when align:center for a consistent center-anchored model.
+  // Update b coordinate convention so x,y is the CENTER of the text bbox (matches img convention).
   Object.assign(node.style, {
     position: 'absolute',
     width: b.w + '%',
     fontSize: b.fontCq + 'cqmin',
+    left: b.x + '%',
     top: b.y + '%',
-    transform: 'translateY(-50%)',
+    transform: 'translate(-50%, -50%)',
   });
   if (align === 'center') {
-    node.style.left = (b.x - b.w / 2) + '%';
     node.style.textAlign = 'center';
   } else {
-    node.style.left = b.x + '%';
     node.style.textAlign = 'left';
   }
-  // Color resolution: if element is in a panel, derive from panelTone.
   if (b.panelText) {
     node.style.color = panelTone === 'dark' ? '#1f1a15' : '#fff';
+    node.classList.add('panel-text');
   } else {
     node.style.color = b.color || '#fff';
   }
+}
+
+// Apply override (x, y, w) to layout config if present.
+function applyOverride(layout, sizeId, photoId, eleType) {
+  const o = getOverride(sizeId, photoId, eleType);
+  if (!o) return layout;
+  return { ...layout, ...o };
+}
+
+// Make an element draggable: updates state.overrides and visually moves the element.
+function makeDraggable(node, ad, card, sizeId, photoId, eleType, defaultLayout) {
+  node.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    selectEl(node);
+    const adRect = ad.getBoundingClientRect();
+    const startMouseX = ev.clientX;
+    const startMouseY = ev.clientY;
+    const current = applyOverride(defaultLayout, sizeId, photoId, eleType);
+    const startX = current.x;
+    const startY = current.y;
+    function move(e2) {
+      const dxPct = (e2.clientX - startMouseX) / adRect.width * 100;
+      const dyPct = (e2.clientY - startMouseY) / adRect.height * 100;
+      const nx = Math.max(0, Math.min(100, startX + dxPct));
+      const ny = Math.max(0, Math.min(100, startY + dyPct));
+      node.style.left = nx + '%';
+      node.style.top = ny + '%';
+      setOverride(sizeId, photoId, eleType, { x: nx, y: ny });
+      card.classList.add('dirty');
+    }
+    function up() {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    }
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  });
 }
 
 function renderAd(size, photoId, opts = {}) {
@@ -397,27 +481,29 @@ function renderAd(size, photoId, opts = {}) {
   const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side';
 
   for (const e of (size.elements || [])) {
+    const eff = applyOverride(e, size.id, photoId, e.type);
     if (e.type === 'headline') {
       const img = el('img', { src: headline.src, alt: '', className: 'el-img' });
-      placeImg(img, e);
-      // Invert headline (white -> dark) for light-panel placements with dark text mode.
+      placeImg(img, eff);
       if (e.invertOnPanel && isPanelLayout && state.panelTone === 'dark') {
-        img.style.filter = 'invert(1)';
+        img.style.filter = 'invert(1) drop-shadow(0 1px 2px rgba(255,255,255,0.5))';
       }
+      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, e.type, e);
       ad.append(img);
     } else if (e.type === 'logo') {
-      // Auto-pick logo color: in panel layouts use color matching panelTone.
       let logoSrc = logo.src;
       if (isPanelLayout) {
         if (state.panelTone === 'dark') logoSrc = LOGOS.find(l => l.id === 'black').src;
         else logoSrc = LOGOS.find(l => l.id === 'white').src;
       }
       const img = el('img', { src: logoSrc, alt: '', className: 'el-img' });
-      placeImg(img, e);
+      placeImg(img, eff);
+      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, e.type, e);
       ad.append(img);
     } else if (e.type === 'body') {
       const node = el('div', { className: 'el el-body' }, state.bodyText);
-      placeText(node, e, state.panelTone);
+      placeText(node, eff, state.panelTone);
+      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, e.type, e);
       ad.append(node);
     }
   }
@@ -444,8 +530,17 @@ function renderGrid() {
     const photos = photosFor(size.id);
     for (const photo of photos) {
       const card = el('div', { className: 'ad-card' });
-      card.append(renderAd(size, photo.id));
+      if (hasOverridesFor(size.id, photo.id)) card.classList.add('dirty');
+      card.append(renderAd(size, photo.id, { card }));
       card.append(el('div', { className: 'meta' }, 'photo #' + photo.id));
+      const resetBtn = el('button', { className: 'reset-btn' }, 'Reset positions');
+      resetBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        clearOverridesFor(size.id, photo.id);
+        card.classList.remove('dirty');
+        renderGrid();
+      });
+      card.append(resetBtn);
       grid.append(card);
     }
     sec.append(grid);
@@ -483,7 +578,7 @@ async function exportZip() {
         position: 'fixed', left: '-99999px', top: '0',
         width: size.w + 'px', height: size.h + 'px',
       });
-      const ad = renderAd(size, photo.id, { exactWidth: size.w });
+      const ad = renderAd(size, photo.id, { exactWidth: size.w, draggable: false });
       offscreen.append(ad);
       document.body.append(offscreen);
       await new Promise(r => requestAnimationFrame(r));

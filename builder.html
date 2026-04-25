@@ -6,7 +6,7 @@
 <title>Amansala · Ad Builder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600;700;800&family=Oswald:wght@400;500;600;700&family=Pinyon+Script&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -80,13 +80,14 @@
   .ad .el:active { cursor: grabbing; }
   .ad .el-img { position: absolute; object-fit: contain; height: auto; cursor: grab; user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)) drop-shadow(0 4px 12px rgba(0,0,0,0.25)); }
   .ad .el-img:active { cursor: grabbing; }
-  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; text-shadow: 0 1px 3px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35); }
-  .ad .el-tagline { font-family: 'Nunito Sans', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.18em; }
+  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 2px 14px rgba(0,0,0,0.45); }
+  .ad .el-tagline { font-family: 'Pinyon Script', cursive; font-weight: 400; line-height: 0.95; }
   .ad .el-body.panel-text { text-shadow: 0 0 0 transparent; }
   .ad .el-img.panel-text { filter: none; }
   .ad .el-selected { outline: 2px dashed #E27F7F; outline-offset: 4px; }
   .ad-card .reset-btn { display: block; margin: 6px auto 0; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--sand); background: var(--cream); color: var(--espresso); border-radius: 3px; cursor: pointer; font-weight: 700; opacity: 0; transition: opacity 0.15s; }
   .ad-card.dirty .reset-btn { opacity: 1; }
+  .resize-handle { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid #E27F7F; border-radius: 50%; cursor: nwse-resize; transform: translate(50%, 50%); pointer-events: auto; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
   .progress { position: fixed; right: 24px; bottom: 24px; background: var(--near-black); color: var(--cream); padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.2); display: none; z-index: 100; }
   .progress.visible { display: block; }
@@ -119,7 +120,7 @@
 
   <div class="section">
     <h3>Body Copy</h3>
-    <label>Body text (multi-line)</label>
+    <label>Body text (multi-line — 300×600 only)</label>
     <textarea id="in-body">The ultimate
 mind body spirit
 tune up.
@@ -128,13 +129,25 @@ Work out, eat fresh
 n healthy and get
 pampered
 on the beach.</textarea>
+    <label>Tagline (320×50 mobile banner)</label>
+    <input type="text" id="in-tagline" value="make memories with mom" placeholder="e.g. make memories with mom" />
+  </div>
+
+  <div class="section">
+    <h3>300×600 layout variant</h3>
+    <select id="layoutVariant" style="width:100%; padding:7px 10px; border:1px solid var(--sand); border-radius:4px; font-family:inherit; font-size:12px;">
+      <option value="full" selected>Full (headline + body + logo)</option>
+      <option value="no-body">No body (headline + logo)</option>
+      <option value="logo-only">Logo only</option>
+    </select>
   </div>
 
   <div class="section">
     <h3>Panel Color</h3>
     <p style="font-size:11px; color:var(--espresso); margin:0 0 8px;">For split layouts: 160×600, 728×90, 320×100.</p>
     <div class="panel-swatches" id="panelSwatches">
-      <div class="panel-swatch active" style="background:#EFC9CA" data-color="#EFC9CA"></div>
+      <div class="panel-swatch active" style="background:linear-gradient(135deg,#87867F 33%,#847977 33% 66%,#637A7A 66%); position:relative;" data-color="auto" title="Auto — derived from photo (160×600 only)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6);letter-spacing:0.1em;">AUTO</span></div>
+      <div class="panel-swatch" style="background:#EFC9CA" data-color="#EFC9CA"></div>
       <div class="panel-swatch" style="background:#B8DCE0" data-color="#B8DCE0"></div>
       <div class="panel-swatch" style="background:#D9C5A8" data-color="#D9C5A8"></div>
       <div class="panel-swatch" style="background:#708A8A" data-color="#708A8A"></div>
@@ -226,9 +239,13 @@ const SIZES = [
   },
   {
     id: '728x90', w: 728, h: 90, label: 'Leaderboard',
-    layoutType: 'split-side',
+    layoutType: 'photo-strip',          // 3 photo strips on left (~70%), panel on right (~30%)
     panel: { x: 70, y: 0, w: 30, h: 100 },
-    photoBox: { x: 0, y: 0, w: 70, h: 100 },
+    photoStrips: [                      // 3 strips of equal width filling the photo area
+      { x: 0,    y: 0, w: 23.3, h: 100 },
+      { x: 23.3, y: 0, w: 23.3, h: 100 },
+      { x: 46.6, y: 0, w: 23.3, h: 100 },
+    ],
     elements: [
       { type: 'headline', x: 85, y: 50, w: 26, align: 'center', invertOnPanel: true },
     ],
@@ -245,21 +262,37 @@ const SIZES = [
   {
     id: '320x50', w: 320, h: 50, label: 'Mobile Banner',
     fade: 'wash',
+    layoutType: 'banner50',
     elements: [
-      { type: 'logo', x: 50, y: 50, w: 28, align: 'center' },
+      { type: 'logo',    x: 18, y: 50, w: 26, align: 'center' },
+      { type: 'tagline', x: 70, y: 50, w: 56, fontCq: 80, align: 'center', color: '#fff' },
     ],
   },
 ];
+
+// Per-photo dominant tones for 160×600 panels (extracted via PIL).
+const PANEL_COLORS_160x600 = {
+  1: '#87867F', 2: '#847977', 3: '#637A7A',
+  4: '#87867F', 5: '#847977', 6: '#637A7A',
+};
 
 const state = {
   headlineId: 'bikini-bootcamp',
   logoColor: 'white',
   bodyText: 'The ultimate\nmind body spirit\ntune up.\n\nWork out, eat fresh\nn healthy and get\npampered\non the beach.',
-  panelColor: '#EFC9CA',
-  panelTone: 'dark', // 'dark' = headline inverted, body text dark, for light panels
-  // Per-photo position overrides: overrides[sizeId][photoId][elementType] = {x, y, w}
+  taglineText: 'make memories with mom',
+  layoutVariant: 'full', // 'full' | 'no-body' | 'logo-only' (300×600 only)
+  panelColor: 'auto',     // 'auto' = derive per photo for 160×600; hex = fixed
+  panelTone: 'dark',      // 'dark' = headline inverted, body text dark, for light panels
+  // Per-photo position+size overrides: overrides[sizeId][photoId][elementType] = {x, y, w}
   overrides: JSON.parse(localStorage.getItem('amansala-builder-overrides') || '{}'),
 };
+
+function resolvePanelColor(sizeId, photoId) {
+  if (state.panelColor !== 'auto') return state.panelColor;
+  if (sizeId === '160x600' && PANEL_COLORS_160x600[photoId]) return PANEL_COLORS_160x600[photoId];
+  return '#87867F'; // fallback for non-160×600 sizes when 'auto' selected
+}
 
 let selectedEl = null;
 
@@ -271,6 +304,8 @@ const redoStack = [];
 function snapshot() {
   return JSON.stringify({
     bodyText: state.bodyText,
+    taglineText: state.taglineText,
+    layoutVariant: state.layoutVariant,
     headlineId: state.headlineId,
     logoColor: state.logoColor,
     panelColor: state.panelColor,
@@ -292,15 +327,17 @@ function pushHistory(prevSnap) {
 function applySnapshot(snap) {
   const obj = JSON.parse(snap);
   state.bodyText = obj.bodyText;
+  state.taglineText = obj.taglineText ?? state.taglineText;
+  state.layoutVariant = obj.layoutVariant ?? state.layoutVariant;
   state.headlineId = obj.headlineId;
   state.logoColor = obj.logoColor;
   state.panelColor = obj.panelColor;
   state.panelTone = obj.panelTone;
   state.overrides = obj.overrides;
-  // Persist overrides like normal mutations do.
   localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
-  // Refresh sidebar UI.
   document.getElementById('in-body').value = state.bodyText;
+  if (document.getElementById('in-tagline')) document.getElementById('in-tagline').value = state.taglineText;
+  if (document.getElementById('layoutVariant')) document.getElementById('layoutVariant').value = state.layoutVariant;
   document.getElementById('panelTone').value = state.panelTone;
   buildHeadlinePicker();
   buildLogoPicker();
@@ -383,13 +420,70 @@ function hasOverridesFor(sizeId, photoId) {
   return !!state.overrides?.[sizeId]?.[photoId] && Object.keys(state.overrides[sizeId][photoId]).length > 0;
 }
 function deselectAll() {
-  if (selectedEl) selectedEl.classList.remove('el-selected');
+  if (selectedEl) {
+    selectedEl.classList.remove('el-selected');
+    if (selectedEl._resizeHandle) {
+      selectedEl._resizeHandle.remove();
+      selectedEl._resizeHandle = null;
+    }
+  }
   selectedEl = null;
 }
-function selectEl(node) {
+function selectEl(node, ad, card, sizeId, photoId, eleType, defaultLayout) {
   deselectAll();
   selectedEl = node;
   node.classList.add('el-selected');
+  // Attach a resize handle on the bottom-right corner. Draggable to scale width.
+  if (ad && sizeId) {
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    handle.title = 'Drag to resize';
+    // Position on top of element's bottom-right corner using the element's bbox within the ad.
+    function positionHandle() {
+      const elRect = node.getBoundingClientRect();
+      const adRect = ad.getBoundingClientRect();
+      handle.style.left = (elRect.right - adRect.left - 6) + 'px';
+      handle.style.top = (elRect.bottom - adRect.top - 6) + 'px';
+    }
+    ad.appendChild(handle);
+    positionHandle();
+    node._resizeHandle = handle;
+    handle.addEventListener('mousedown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const adRect = ad.getBoundingClientRect();
+      const startMouseX = ev.clientX;
+      const startMouseY = ev.clientY;
+      const cur = applyOverride(defaultLayout, sizeId, photoId, eleType);
+      const startW = cur.w || defaultLayout.w;
+      const startFontCq = cur.fontCq ?? defaultLayout.fontCq;
+      const isText = node.classList.contains('el-body') || node.classList.contains('el-tagline');
+      const dragSnap = snapshot();
+      let moved = false;
+      function resizeMove(e2) {
+        const dxPct = (e2.clientX - startMouseX) / adRect.width * 100;
+        if (Math.abs(dxPct) < 0.05 && !moved) return;
+        moved = true;
+        const scale = 1 + (dxPct / Math.max(startW, 10));
+        const newW = Math.max(5, Math.min(100, startW * scale));
+        const patch = { w: newW };
+        if (isText && startFontCq != null) patch.fontCq = startFontCq * scale;
+        setOverride(sizeId, photoId, eleType, patch);
+        node.style.width = newW + '%';
+        if (isText && startFontCq != null) node.style.fontSize = (startFontCq * scale) + 'cqmin';
+        card.classList.add('dirty');
+        positionHandle();
+      }
+      function resizeUp() {
+        window.removeEventListener('mousemove', resizeMove);
+        window.removeEventListener('mouseup', resizeUp);
+        if (moved) pushHistory(dragSnap);
+      }
+      window.addEventListener('mousemove', resizeMove);
+      window.addEventListener('mouseup', resizeUp);
+    });
+  }
 }
 // Click outside any element to deselect.
 document.addEventListener('mousedown', (ev) => {
@@ -507,7 +601,7 @@ function makeDraggable(node, ad, card, sizeId, photoId, eleType, defaultLayout) 
     if (ev.button !== 0) return;
     ev.preventDefault();
     ev.stopPropagation();
-    selectEl(node);
+    selectEl(node, ad, card, sizeId, photoId, eleType, defaultLayout);
     const adRect = ad.getBoundingClientRect();
     const startMouseX = ev.clientX;
     const startMouseY = ev.clientY;
@@ -547,6 +641,8 @@ function renderAd(size, photoId, opts = {}) {
   ad.style.width = previewW + 'px';
   ad.style.height = previewH + 'px';
 
+  const panelBg = resolvePanelColor(size.id, photoId);
+
   // === Background ===
   if (size.layoutType === 'split-stack') {
     for (const band of size.photoBands) {
@@ -561,7 +657,7 @@ function renderAd(size, photoId, opts = {}) {
     Object.assign(panel.style, {
       left: size.panel.x + '%', top: size.panel.y + '%',
       width: size.panel.w + '%', height: size.panel.h + '%',
-      background: state.panelColor,
+      background: panelBg,
     });
     ad.append(panel);
   } else if (size.layoutType === 'split-side') {
@@ -575,7 +671,29 @@ function renderAd(size, photoId, opts = {}) {
     Object.assign(panel.style, {
       left: size.panel.x + '%', top: size.panel.y + '%',
       width: size.panel.w + '%', height: size.panel.h + '%',
-      background: state.panelColor,
+      background: panelBg,
+    });
+    ad.append(panel);
+  } else if (size.layoutType === 'photo-strip') {
+    // Multi-photo collage. Use neighbor photos so each ad is unique.
+    const allPhotos = photosFor(size.id);
+    const N = allPhotos.length;
+    const baseIdx = allPhotos.findIndex(p => p.id === photoId);
+    for (let i = 0; i < size.photoStrips.length; i++) {
+      const strip = size.photoStrips[i];
+      const stripPhoto = allPhotos[(baseIdx + i) % N];
+      const img = el('img', { src: stripPhoto.src, alt: '', className: 'photo-band' });
+      Object.assign(img.style, {
+        left: strip.x + '%', top: strip.y + '%',
+        width: strip.w + '%', height: strip.h + '%',
+      });
+      ad.append(img);
+    }
+    const panel = el('div', { className: 'panel' });
+    Object.assign(panel.style, {
+      left: size.panel.x + '%', top: size.panel.y + '%',
+      width: size.panel.w + '%', height: size.panel.h + '%',
+      background: panelBg,
     });
     ad.append(panel);
   } else {
@@ -590,9 +708,20 @@ function renderAd(size, photoId, opts = {}) {
   // === Elements ===
   const headline = getHeadline();
   const logo = getLogo();
-  const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side';
+  const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side' || size.layoutType === 'photo-strip';
+
+  // 300×600 layout-variant filter — drop body/headline based on user pick.
+  const variant = state.layoutVariant;
+  function shouldRender(e) {
+    if (size.id !== '300x600') return true;
+    if (variant === 'full') return true;
+    if (variant === 'no-body') return e.type !== 'body';
+    if (variant === 'logo-only') return e.type === 'logo';
+    return true;
+  }
 
   for (const e of (size.elements || [])) {
+    if (!shouldRender(e)) continue;
     const eff = applyOverride(e, size.id, photoId, e.type);
     if (e.type === 'headline') {
       const img = el('img', { src: headline.src, alt: '', className: 'el-img' });
@@ -604,7 +733,8 @@ function renderAd(size, photoId, opts = {}) {
       ad.append(img);
     } else if (e.type === 'logo') {
       let logoSrc = logo.src;
-      if (isPanelLayout) {
+      if (isPanelLayout && size.layoutType !== 'photo-strip') {
+        // In split-stack/split-side panels, auto-pick logo color to match panel tone.
         if (state.panelTone === 'dark') logoSrc = LOGOS.find(l => l.id === 'black').src;
         else logoSrc = LOGOS.find(l => l.id === 'white').src;
       }
@@ -615,6 +745,13 @@ function renderAd(size, photoId, opts = {}) {
     } else if (e.type === 'body') {
       const node = el('div', { className: 'el el-body' }, state.bodyText);
       placeText(node, eff, state.panelTone);
+      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, e.type, e);
+      ad.append(node);
+    } else if (e.type === 'tagline') {
+      const node = el('div', { className: 'el el-tagline' }, state.taglineText);
+      placeText(node, eff, state.panelTone);
+      // Tagline always has white shadow on photo backgrounds for legibility.
+      node.style.textShadow = '0 1px 4px rgba(0,0,0,0.55), 0 2px 12px rgba(0,0,0,0.35)';
       if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, e.type, e);
       ad.append(node);
     }
@@ -665,6 +802,17 @@ function renderGrid() {
 document.getElementById('in-body').addEventListener('input', e => {
   recordTyping();
   state.bodyText = e.target.value;
+  renderGrid();
+});
+document.getElementById('in-tagline').addEventListener('input', e => {
+  recordTyping();
+  state.taglineText = e.target.value;
+  renderGrid();
+});
+document.getElementById('layoutVariant').addEventListener('change', e => {
+  const prev = snapshot();
+  state.layoutVariant = e.target.value;
+  pushHistory(prev);
   renderGrid();
 });
 document.getElementById('panelTone').addEventListener('change', e => {

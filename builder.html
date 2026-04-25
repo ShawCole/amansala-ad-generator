@@ -98,6 +98,8 @@
   <h1>Amansala · Ad Builder</h1>
   <span class="tag">all 13 photos · all 7 sizes · live</span>
   <div class="actions">
+    <button class="btn" id="undoBtn" title="Undo (Cmd/Ctrl+Z)" disabled>↶ Undo</button>
+    <button class="btn" id="redoBtn" title="Redo (Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y)" disabled>↷ Redo</button>
     <button class="btn" id="exportBtn">Export ZIP</button>
   </div>
 </div>
@@ -261,6 +263,107 @@ const state = {
 
 let selectedEl = null;
 
+// === Undo/Redo ===
+const HISTORY_MAX = 80;
+const undoStack = [];
+const redoStack = [];
+
+function snapshot() {
+  return JSON.stringify({
+    bodyText: state.bodyText,
+    headlineId: state.headlineId,
+    logoColor: state.logoColor,
+    panelColor: state.panelColor,
+    panelTone: state.panelTone,
+    overrides: state.overrides,
+  });
+}
+
+function pushHistory(prevSnap) {
+  if (!prevSnap) return;
+  // Skip if no actual change.
+  if (prevSnap === snapshot()) return;
+  undoStack.push(prevSnap);
+  if (undoStack.length > HISTORY_MAX) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoButtons();
+}
+
+function applySnapshot(snap) {
+  const obj = JSON.parse(snap);
+  state.bodyText = obj.bodyText;
+  state.headlineId = obj.headlineId;
+  state.logoColor = obj.logoColor;
+  state.panelColor = obj.panelColor;
+  state.panelTone = obj.panelTone;
+  state.overrides = obj.overrides;
+  // Persist overrides like normal mutations do.
+  localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
+  // Refresh sidebar UI.
+  document.getElementById('in-body').value = state.bodyText;
+  document.getElementById('panelTone').value = state.panelTone;
+  buildHeadlinePicker();
+  buildLogoPicker();
+  document.querySelectorAll('#panelSwatches .panel-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === state.panelColor);
+  });
+  deselectAll();
+  renderGrid();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const current = snapshot();
+  redoStack.push(current);
+  const prev = undoStack.pop();
+  applySnapshot(prev);
+  updateUndoButtons();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const current = snapshot();
+  undoStack.push(current);
+  const next = redoStack.pop();
+  applySnapshot(next);
+  updateUndoButtons();
+}
+
+function updateUndoButtons() {
+  const u = document.getElementById('undoBtn');
+  const r = document.getElementById('redoBtn');
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
+// Debounced typing: one history entry per ~500ms-quiet typing burst.
+let typingPrev = null;
+let typingTimer = null;
+function recordTyping() {
+  if (!typingPrev) typingPrev = snapshot();
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    pushHistory(typingPrev);
+    typingPrev = null;
+  }, 500);
+}
+
+// Keyboard shortcuts (override browser native undo so we capture every state).
+document.addEventListener('keydown', (ev) => {
+  const meta = ev.metaKey || ev.ctrlKey;
+  if (!meta) return;
+  const k = ev.key.toLowerCase();
+  if (k === 'z' && !ev.shiftKey) {
+    ev.preventDefault();
+    // Flush any pending typing burst into history before undoing.
+    if (typingPrev) { clearTimeout(typingTimer); pushHistory(typingPrev); typingPrev = null; }
+    undo();
+  } else if ((k === 'z' && ev.shiftKey) || k === 'y') {
+    ev.preventDefault();
+    redo();
+  }
+});
+
 function getOverride(sizeId, photoId, eleType) {
   return state.overrides?.[sizeId]?.[photoId]?.[eleType];
 }
@@ -318,7 +421,9 @@ function buildHeadlinePicker() {
     const cb = el('input', { type: 'radio', name: 'headline', value: h.id });
     cb.checked = state.headlineId === h.id;
     cb.addEventListener('change', () => {
+      const prev = snapshot();
       state.headlineId = h.id;
+      pushHistory(prev);
       buildHeadlinePicker();
       renderGrid();
     });
@@ -338,7 +443,9 @@ function buildLogoPicker() {
     const cb = el('input', { type: 'radio', name: 'logo', value: lg.id });
     cb.checked = state.logoColor === lg.id;
     cb.addEventListener('change', () => {
+      const prev = snapshot();
       state.logoColor = lg.id;
+      pushHistory(prev);
       buildLogoPicker();
       renderGrid();
     });
@@ -407,9 +514,13 @@ function makeDraggable(node, ad, card, sizeId, photoId, eleType, defaultLayout) 
     const current = applyOverride(defaultLayout, sizeId, photoId, eleType);
     const startX = current.x;
     const startY = current.y;
+    let moved = false;
+    const dragStartSnap = snapshot();
     function move(e2) {
       const dxPct = (e2.clientX - startMouseX) / adRect.width * 100;
       const dyPct = (e2.clientY - startMouseY) / adRect.height * 100;
+      if (Math.abs(dxPct) < 0.05 && Math.abs(dyPct) < 0.05 && !moved) return;
+      moved = true;
       const nx = Math.max(0, Math.min(100, startX + dxPct));
       const ny = Math.max(0, Math.min(100, startY + dyPct));
       node.style.left = nx + '%';
@@ -420,6 +531,7 @@ function makeDraggable(node, ad, card, sizeId, photoId, eleType, defaultLayout) 
     function up() {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
+      if (moved) pushHistory(dragStartSnap);
     }
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
@@ -536,7 +648,9 @@ function renderGrid() {
       const resetBtn = el('button', { className: 'reset-btn' }, 'Reset positions');
       resetBtn.addEventListener('click', (ev) => {
         ev.stopPropagation();
+        const prev = snapshot();
         clearOverridesFor(size.id, photo.id);
+        pushHistory(prev);
         card.classList.remove('dirty');
         renderGrid();
       });
@@ -548,17 +662,31 @@ function renderGrid() {
   }
 }
 
-document.getElementById('in-body').addEventListener('input', e => { state.bodyText = e.target.value; renderGrid(); });
-document.getElementById('panelTone').addEventListener('change', e => { state.panelTone = e.target.value; renderGrid(); });
+document.getElementById('in-body').addEventListener('input', e => {
+  recordTyping();
+  state.bodyText = e.target.value;
+  renderGrid();
+});
+document.getElementById('panelTone').addEventListener('change', e => {
+  const prev = snapshot();
+  state.panelTone = e.target.value;
+  pushHistory(prev);
+  renderGrid();
+});
 
 document.querySelectorAll('#panelSwatches .panel-swatch').forEach(sw => {
   sw.addEventListener('click', () => {
+    const prev = snapshot();
     document.querySelectorAll('#panelSwatches .panel-swatch').forEach(s => s.classList.remove('active'));
     sw.classList.add('active');
     state.panelColor = sw.dataset.color;
+    pushHistory(prev);
     renderGrid();
   });
 });
+
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
 
 async function exportZip() {
   const btn = document.getElementById('exportBtn');

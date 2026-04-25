@@ -6,7 +6,7 @@
 <title>Amansala · Ad Builder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Allura&family=Great+Vibes&family=Parisienne&family=Pinyon+Script&family=Sacramento&family=Anton&family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Nunito+Sans:wght@200;300;400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -17,11 +17,6 @@
     --espresso: #574A3F;
     --near-black: #362F28;
     --ink: #1f1a15;
-    --panel-pink: #EFC9CA;
-    --panel-blue: #B8DCE0;
-    --panel-tan: #D9C5A8;
-    --panel-slate: #708A8A;
-    --panel-espresso: #574A3F;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); font-family: 'Nunito Sans', system-ui, sans-serif; }
@@ -30,11 +25,8 @@
   .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 14px 22px; background: var(--near-black); color: var(--cream); position: sticky; top: 0; z-index: 50; }
   .topbar h1 { font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 18px; margin: 0; letter-spacing: 0.18em; text-transform: uppercase; }
   .topbar .tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--tan); padding: 3px 10px; border: 1px solid var(--tan); border-radius: 999px; }
-  .topbar .actions { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .topbar select { background: transparent; color: var(--cream); border: 1px solid var(--tan); padding: 6px 10px; font-size: 11px; border-radius: 4px; font-family: inherit; letter-spacing: 0.06em; }
-  .topbar select option { background: var(--near-black); color: var(--cream); }
-  .topbar .label-mini { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tan); font-weight: 700; }
-  .btn { font-family: inherit; background: var(--tan); color: var(--ink); border: none; padding: 9px 16px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; border-radius: 4px; cursor: pointer; font-weight: 700; }
+  .topbar .actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .btn { font-family: inherit; background: var(--tan); color: var(--ink); border: none; padding: 10px 18px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; border-radius: 4px; cursor: pointer; font-weight: 700; }
   .btn:hover { filter: brightness(1.08); }
   .btn:disabled { opacity: 0.5; cursor: progress; }
 
@@ -43,7 +35,16 @@
   .sidebar .section h3 { margin: 0 0 10px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--espresso); font-weight: 700; }
   .sidebar label { display: block; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tan); margin: 8px 0 4px; font-weight: 700; }
   .sidebar input[type="text"], .sidebar textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--sand); border-radius: 4px; font-family: inherit; font-size: 13px; color: var(--ink); background: #fff; resize: vertical; }
-  .sidebar textarea { min-height: 70px; line-height: 1.35; }
+  .sidebar textarea { min-height: 110px; line-height: 1.35; }
+
+  .asset-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .asset-picker label { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid var(--sand); border-radius: 4px; cursor: pointer; background: #fff; margin: 0; }
+  .asset-picker input { display: none; }
+  .asset-picker label.active { border-color: var(--espresso); background: var(--cream); }
+  .asset-picker .swatch { width: 100%; height: 32px; display: flex; align-items: center; justify-content: center; }
+  .asset-picker .swatch img { max-width: 100%; max-height: 100%; }
+  .asset-picker .swatch.dark-bg { background: var(--near-black); border-radius: 3px; }
+  .asset-picker .name { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--espresso); }
 
   .panel-swatches { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .panel-swatch { width: 28px; height: 28px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; }
@@ -66,28 +67,19 @@
   .ad-card { background: #fff; padding: 8px; border: 1px solid var(--sand); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
   .ad-card .meta { font-size: 10px; font-weight: 700; color: var(--tan); margin-top: 6px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
 
-  /* The actual ad — uses container queries so font sizes scale with the ad's rendered size */
-  .ad {
-    position: relative;
-    overflow: hidden;
-    container-type: size;
-    background: #111;
-  }
+  .ad { position: relative; overflow: hidden; container-type: size; background: #111; }
   .ad .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .ad .photo-band { position: absolute; object-fit: cover; }
   .ad .panel { position: absolute; }
   .ad .fade-bottom { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.32), rgba(0,0,0,0) 45%); pointer-events: none; }
   .ad .fade-top { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0) 45%); pointer-events: none; }
-  .ad .fade-both { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.4) 100%); pointer-events: none; }
+  .ad .fade-both { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.45) 100%); pointer-events: none; }
   .ad .wash { position: absolute; inset: 0; background: linear-gradient(to right, rgba(0,0,0,0.18), rgba(0,0,0,0.05)); pointer-events: none; }
 
   .ad .el { position: absolute; line-height: 1.0; white-space: pre-wrap; }
-  .ad .el-script   { font-family: 'Pinyon Script', cursive; font-weight: 400; line-height: 0.9; }
-  .ad .el-display  { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; }
-  .ad .el-subtitle { font-family: 'Nunito Sans', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.22em; }
-  .ad .el-body     { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
-  .ad .el-logo     { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3em; }
-  .ad .el-tulum    { font-family: 'Pinyon Script', cursive; font-weight: 400; }
+  .ad .el-img { position: absolute; object-fit: contain; height: auto; }
+  .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; }
+  .ad .el-tagline { font-family: 'Nunito Sans', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.18em; }
 
   .progress { position: fixed; right: 24px; bottom: 24px; background: var(--near-black); color: var(--cream); padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.2); display: none; z-index: 100; }
   .progress.visible { display: block; }
@@ -99,40 +91,26 @@
   <h1>Amansala · Ad Builder</h1>
   <span class="tag">all 13 photos · all 7 sizes · live</span>
   <div class="actions">
-    <span class="label-mini">Script</span>
-    <select id="fontScript">
-      <option value="Pinyon Script" selected>Pinyon Script</option>
-      <option value="Great Vibes">Great Vibes</option>
-      <option value="Allura">Allura</option>
-      <option value="Parisienne">Parisienne</option>
-      <option value="Sacramento">Sacramento</option>
-    </select>
-    <span class="label-mini">Display</span>
-    <select id="fontDisplay">
-      <option value="Oswald" selected>Oswald</option>
-      <option value="Anton">Anton</option>
-      <option value="Bebas Neue">Bebas Neue</option>
-      <option value="Archivo">Archivo</option>
-    </select>
     <button class="btn" id="exportBtn">Export ZIP</button>
   </div>
 </div>
 
 <aside class="sidebar">
   <div class="section">
-    <h3>Campaign Text</h3>
-    <p style="font-size:11px; color:var(--espresso); margin:0 0 10px; line-height:1.4;">Type below — every ad on the right updates instantly.</p>
+    <h3>Headline (campaign artwork)</h3>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 10px; line-height:1.4;">The headline is a brand-locked PNG. New campaigns add a file to <code>assets/headlines/</code>.</p>
+    <div class="asset-picker" id="headlinePicker"></div>
+  </div>
 
-    <label>Script headline</label>
-    <input type="text" id="in-script" value="Bikini" />
+  <div class="section">
+    <h3>Logo color</h3>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 10px; line-height:1.4;">White on photos / dark over light panels.</p>
+    <div class="asset-picker" id="logoPicker"></div>
+  </div>
 
-    <label>Display headline</label>
-    <input type="text" id="in-display" value="Bootcamp" />
-
-    <label>Subtitle</label>
-    <input type="text" id="in-subtitle" value="A vacation with a purpose" />
-
-    <label>Body (multi-line)</label>
+  <div class="section">
+    <h3>Body Copy</h3>
+    <label>Body text (multi-line)</label>
     <textarea id="in-body">The ultimate
 mind body spirit
 tune up.
@@ -141,45 +119,32 @@ Work out, eat fresh
 n healthy and get
 pampered
 on the beach.</textarea>
-
-    <label>Logo wordmark</label>
-    <input type="text" id="in-logo" value="Amansala" />
-
-    <label>Tulum line (320×50 only)</label>
-    <input type="text" id="in-tulum" value="Tulum" />
   </div>
 
   <div class="section">
     <h3>Panel Color</h3>
-    <p style="font-size:11px; color:var(--espresso); margin:0 0 8px;">Used for split layouts: 160×600, 728×90, 320×100. Solid panel behind text.</p>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 8px;">For split layouts: 160×600, 728×90, 320×100.</p>
     <div class="panel-swatches" id="panelSwatches">
-      <div class="panel-swatch active" style="background:#EFC9CA" data-color="#EFC9CA" title="Pink"></div>
-      <div class="panel-swatch" style="background:#B8DCE0" data-color="#B8DCE0" title="Blue"></div>
-      <div class="panel-swatch" style="background:#D9C5A8" data-color="#D9C5A8" title="Tan"></div>
-      <div class="panel-swatch" style="background:#708A8A" data-color="#708A8A" title="Slate"></div>
-      <div class="panel-swatch" style="background:#574A3F" data-color="#574A3F" title="Espresso"></div>
-      <div class="panel-swatch" style="background:#F5F0E8" data-color="#F5F0E8" title="Cream"></div>
+      <div class="panel-swatch active" style="background:#EFC9CA" data-color="#EFC9CA"></div>
+      <div class="panel-swatch" style="background:#B8DCE0" data-color="#B8DCE0"></div>
+      <div class="panel-swatch" style="background:#D9C5A8" data-color="#D9C5A8"></div>
+      <div class="panel-swatch" style="background:#708A8A" data-color="#708A8A"></div>
+      <div class="panel-swatch" style="background:#574A3F" data-color="#574A3F"></div>
+      <div class="panel-swatch" style="background:#F5F0E8" data-color="#F5F0E8"></div>
     </div>
-    <label style="margin-top:14px;">Panel text color</label>
-    <select id="panelTextColor">
-      <option value="#1f1a15" selected>Near-black</option>
-      <option value="#574A3F">Espresso</option>
-      <option value="#FFFFFF">White</option>
-      <option value="#F5F0E8">Cream</option>
+    <label style="margin-top:14px;">Panel text + headline color</label>
+    <select id="panelTone" style="width:100%; padding:7px 10px; border:1px solid var(--sand); border-radius:4px; font-family:inherit; font-size:12px;">
+      <option value="dark" selected>Dark (for light panels)</option>
+      <option value="light">Light (for dark panels)</option>
     </select>
-  </div>
-
-  <div class="section">
-    <h3>Photo Catalog</h3>
-    <p style="font-size:11px; color:var(--espresso); margin:0; line-height:1.4;">All 13 source photos render across every size automatically. No selection needed — every combination is visible. To change the photo library, drop new files into <code>assets/photos/</code> and rename to <code>1.png</code>–<code>N.png</code>.</p>
   </div>
 </aside>
 
 <main>
   <div class="intro">
-    <p><strong>What this is.</strong> A live-preview ad builder for the Amansala team. Every photo in the catalog renders at every DSP size — 13 photos × 7 sizes = 91 ad variations on this page, all updating in real time as you type campaign text.</p>
-    <p><strong>Element presence per size.</strong> Not all elements appear at every size. 300×600 carries the full layout (script + display headline + subtitle + body + logo). Wider banners drop body. 320×50 carries only the wordmark + script tagline. Layouts derived from Paulina's Canva references.</p>
-    <p><strong>Export.</strong> Click <strong>Export ZIP</strong> in the topbar — outputs one PNG per photo per size, organized into folders by size.</p>
+    <p><strong>What this is.</strong> A live-preview ad builder for the Amansala team. All 13 photos × all 7 DSP sizes = 91 ad variations on this page, updating instantly when you change the headline, logo, body, or panel.</p>
+    <p><strong>Headline + logo are PNG artwork</strong> (brand-locked, designed in Canva). Body copy is editable. To add a new campaign headline (e.g., Mother's Day, Soulful Singles), drop a transparent-PNG into <code>assets/headlines/</code> and add an entry to the catalog list at the top of <code>builder.html</code>.</p>
+    <p><strong>Export.</strong> Click <strong>Export ZIP</strong> for one PNG per photo per size, organized into folders.</p>
   </div>
 
   <div id="grid"></div>
@@ -191,94 +156,83 @@ on the beach.</textarea>
 const PHOTO_COUNT = 13;
 const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({ id: i + 1, src: 'assets/photos/' + (i + 1) + '.png' }));
 
-// Each size is rendered as a single ad-card, with element presence and layout per-size.
-// All numeric font sizes use cqmin (container-query min) units so they scale consistently
-// with the ad's rendered size — same coords whether the preview is full-size or scaled.
+// Brand asset catalogs.
+const HEADLINES = [
+  { id: 'bikini-bootcamp', label: 'Bikini Bootcamp', src: 'assets/headlines/bikini-bootcamp-white.png', includesSubtitle: true },
+];
+const LOGOS = [
+  { id: 'white', label: 'White', src: 'assets/logos/amansala-white.png', darkBg: true },
+  { id: 'gold',  label: 'Gold',  src: 'assets/logos/amansala-gold.png', darkBg: false },
+  { id: 'black', label: 'Black', src: 'assets/logos/amansala-black.png', darkBg: false },
+];
+
+// Per-size layout. Each element targets one of:
+//   { type: 'headline', x, y, w, align, invertOnPanel }
+//   { type: 'logo',     x, y, w, align, useColor: 'auto'|'white'|'gold'|'black' }
+//   { type: 'body',     x, y, w, fontCq, color, align, panelText }
 const SIZES = [
   {
     id: '300x250', w: 300, h: 250, label: 'Medium Rectangle',
-    fade: 'top',
-    elements: ['script', 'display', 'subtitle'],
-    // Reference packs the wordmark tight in upper-mid area, with subtitle directly under.
-    layout: {
-      script:   { x: 50, y: 26, w: 88, fontCq: 30, color: '#fff', align: 'center' },
-      display:  { x: 50, y: 50, w: 88, fontCq: 17, color: '#fff', align: 'center' },
-      subtitle: { x: 50, y: 64, w: 88, fontCq: 4.5, color: '#fff', align: 'center' },
-    }
+    fade: 'bottom',
+    elements: [
+      { type: 'headline', x: 50, y: 45, w: 78, align: 'center' },
+    ],
   },
   {
     id: '300x600', w: 300, h: 600, label: 'Half-Page',
     fade: 'both',
-    elements: ['script', 'display', 'subtitle', 'body', 'logo'],
-    // Reference: huge script at top (~22% h), display under (~7%), subtitle thin,
-    // BIG gap, body in middle-lower, palm logo at bottom.
-    layout: {
-      script:   { x: 50, y: 9,  w: 90, fontCq: 26, color: '#fff', align: 'center' },
-      display:  { x: 50, y: 23, w: 90, fontCq: 14, color: '#fff', align: 'center' },
-      subtitle: { x: 50, y: 32, w: 90, fontCq: 3.4, color: '#fff', align: 'center' },
-      body:     { x: 50, y: 65, w: 86, fontCq: 4.5, color: '#fff', align: 'center' },
-      logo:     { x: 50, y: 90, w: 32, fontCq: 5.5, color: '#fff', align: 'center', isPalmLogo: true },
-    }
+    elements: [
+      { type: 'headline', x: 50, y: 18, w: 84, align: 'center' },
+      { type: 'body',     x: 50, y: 65, w: 86, fontCq: 4.4, color: '#fff', align: 'center' },
+      { type: 'logo',     x: 50, y: 90, w: 32, align: 'center' },
+    ],
   },
   {
     id: '160x600', w: 160, h: 600, label: 'Wide Skyscraper',
-    layoutType: 'split-stack',     // 30% photo / 40% panel / 30% photo
+    layoutType: 'split-stack',
     panel: { x: 0, y: 30, w: 100, h: 40 },
     photoBands: [
       { x: 0, y: 0, w: 100, h: 30 },
       { x: 0, y: 70, w: 100, h: 30 },
     ],
-    elements: ['script', 'display', 'subtitle', 'body'],
-    layout: {
-      script:   { x: 50, y: 33, w: 92, fontCq: 22, panelText: true, align: 'center' },
-      display:  { x: 50, y: 47, w: 92, fontCq: 9,  panelText: true, align: 'center' },
-      subtitle: { x: 50, y: 53, w: 92, fontCq: 3.5,  panelText: true, align: 'center' },
-      body:     { x: 50, y: 60, w: 92, fontCq: 4.0,  panelText: true, align: 'center' },
-    }
+    elements: [
+      { type: 'headline', x: 50, y: 42, w: 88, align: 'center', invertOnPanel: true },
+      { type: 'body',     x: 50, y: 62, w: 90, fontCq: 4.0, panelText: true, align: 'center' },
+    ],
   },
   {
     id: '728x90', w: 728, h: 90, label: 'Leaderboard',
     layoutType: 'split-side',
     panel: { x: 70, y: 0, w: 30, h: 100 },
     photoBox: { x: 0, y: 0, w: 70, h: 100 },
-    elements: ['script', 'display', 'subtitle'],
-    layout: {
-      script:   { x: 85, y: 25, w: 28, fontCq: 36, panelText: true, align: 'center' },
-      display:  { x: 85, y: 60, w: 28, fontCq: 18, panelText: true, align: 'center' },
-      subtitle: { x: 85, y: 80, w: 28, fontCq: 6.5,  panelText: true, align: 'center' },
-    }
+    elements: [
+      { type: 'headline', x: 85, y: 50, w: 26, align: 'center', invertOnPanel: true },
+    ],
   },
   {
     id: '320x100', w: 320, h: 100, label: 'Mobile Large',
     layoutType: 'split-side',
     panel: { x: 0, y: 0, w: 50, h: 100 },
     photoBox: { x: 50, y: 0, w: 50, h: 100 },
-    elements: ['script', 'display', 'subtitle'],
-    layout: {
-      script:   { x: 25, y: 22, w: 46, fontCq: 32, panelText: true, align: 'center' },
-      display:  { x: 25, y: 58, w: 46, fontCq: 16, panelText: true, align: 'center' },
-      subtitle: { x: 25, y: 80, w: 46, fontCq: 6,  panelText: true, align: 'center' },
-    }
+    elements: [
+      { type: 'headline', x: 25, y: 50, w: 44, align: 'center', invertOnPanel: true },
+    ],
   },
   {
     id: '320x50', w: 320, h: 50, label: 'Mobile Banner',
     fade: 'wash',
-    layoutType: 'banner50',
-    elements: ['logo+tulum', 'script'],
+    elements: [
+      { type: 'logo', x: 50, y: 50, w: 28, align: 'center' },
+    ],
   },
 ];
 
 const state = {
-  scriptText: 'Bikini',
-  displayText: 'Bootcamp',
-  subtitle: 'A vacation with a purpose',
-  body: 'The ultimate\nmind body spirit\ntune up.\n\nWork out, eat fresh\nn healthy and get\npampered\non the beach.',
-  logoText: 'Amansala',
-  tulumText: 'Tulum',
-  fontScript: 'Pinyon Script',
-  fontDisplay: 'Oswald',
+  headlineId: 'bikini-bootcamp',
+  logoColor: 'white',
+  bodyText: 'The ultimate\nmind body spirit\ntune up.\n\nWork out, eat fresh\nn healthy and get\npampered\non the beach.',
   panelColor: '#EFC9CA',
-  panelTextColor: '#1f1a15',
+  panelTone: 'dark', // 'dark' = headline inverted, body text dark, for light panels
 };
 
 function el(tag, attrs = {}, text) {
@@ -293,43 +247,97 @@ function el(tag, attrs = {}, text) {
   return e;
 }
 
-// Position helper. fontCq is "% of cqmin" — i.e. fontSize: 24cqmin means 24% of the ad's smaller side.
-// Actually we use a custom unit: 1 fontCq = 1cqmin, so fontCq:24 → 24cqmin. For wide banners we scale this differently.
-function posStyle(b, panelTextColor) {
+function getHeadline() { return HEADLINES.find(h => h.id === state.headlineId) || HEADLINES[0]; }
+function getLogo() { return LOGOS.find(l => l.id === state.logoColor) || LOGOS[0]; }
+
+function buildHeadlinePicker() {
+  const root = document.getElementById('headlinePicker');
+  root.replaceChildren();
+  for (const h of HEADLINES) {
+    const lbl = el('label', { className: state.headlineId === h.id ? 'active' : '' });
+    const cb = el('input', { type: 'radio', name: 'headline', value: h.id });
+    cb.checked = state.headlineId === h.id;
+    cb.addEventListener('change', () => {
+      state.headlineId = h.id;
+      buildHeadlinePicker();
+      renderGrid();
+    });
+    const swatch = el('div', { className: 'swatch dark-bg' });
+    const img = el('img', { src: h.src, alt: h.label });
+    swatch.append(img);
+    lbl.append(cb, swatch, el('span', { className: 'name' }, h.label));
+    root.append(lbl);
+  }
+}
+
+function buildLogoPicker() {
+  const root = document.getElementById('logoPicker');
+  root.replaceChildren();
+  for (const lg of LOGOS) {
+    const lbl = el('label', { className: state.logoColor === lg.id ? 'active' : '' });
+    const cb = el('input', { type: 'radio', name: 'logo', value: lg.id });
+    cb.checked = state.logoColor === lg.id;
+    cb.addEventListener('change', () => {
+      state.logoColor = lg.id;
+      buildLogoPicker();
+      renderGrid();
+    });
+    const swatch = el('div', { className: 'swatch' + (lg.darkBg ? ' dark-bg' : '') });
+    const img = el('img', { src: lg.src, alt: lg.label });
+    swatch.append(img);
+    lbl.append(cb, swatch, el('span', { className: 'name' }, lg.label));
+    root.append(lbl);
+  }
+}
+
+function placeImg(node, b) {
+  // Center via translate(-50%,-50%) so x,y refer to the image's center anchor.
+  Object.assign(node.style, {
+    position: 'absolute',
+    width: b.w + '%',
+    height: 'auto',
+    left: b.x + '%',
+    top: b.y + '%',
+    transform: 'translate(-50%, -50%)',
+    objectFit: 'contain',
+  });
+}
+
+function placeText(node, b, panelTone) {
   const align = b.align || 'left';
-  const style = {
+  Object.assign(node.style, {
+    position: 'absolute',
     width: b.w + '%',
     fontSize: b.fontCq + 'cqmin',
     top: b.y + '%',
-  };
+    transform: 'translateY(-50%)',
+  });
   if (align === 'center') {
-    style.left = (b.x - b.w / 2) + '%';
-    style.textAlign = 'center';
-    style.transform = 'translateY(-50%)';
+    node.style.left = (b.x - b.w / 2) + '%';
+    node.style.textAlign = 'center';
   } else {
-    style.left = b.x + '%';
-    style.textAlign = 'left';
+    node.style.left = b.x + '%';
+    node.style.textAlign = 'left';
   }
-  // Color: panelText uses panelTextColor (for split layouts), otherwise b.color (or default white).
-  style.color = b.panelText ? panelTextColor : (b.color || '#fff');
-  return style;
+  // Color resolution: if element is in a panel, derive from panelTone.
+  if (b.panelText) {
+    node.style.color = panelTone === 'dark' ? '#1f1a15' : '#fff';
+  } else {
+    node.style.color = b.color || '#fff';
+  }
 }
 
 function renderAd(size, photoId, opts = {}) {
   const photo = PHOTOS.find(p => p.id === photoId);
   const ad = el('div', { className: 'ad' });
-  // Cap small sizes at native, wide formats at ~460px max for the preview grid.
   const maxPreviewW = 460;
   const previewW = opts.exactWidth || (size.w <= maxPreviewW ? size.w : maxPreviewW);
   const previewH = previewW * size.h / size.w;
-  // CRITICAL: set BOTH dimensions explicitly. container-type:size + cqmin units require
-  // definite block size, not just inline size + aspect-ratio.
   ad.style.width = previewW + 'px';
   ad.style.height = previewH + 'px';
 
-  // === Background construction ===
+  // === Background ===
   if (size.layoutType === 'split-stack') {
-    // Two photo bands stacked, with a panel band between them.
     for (const band of size.photoBands) {
       const img = el('img', { src: photo.src, alt: '', className: 'photo-band' });
       Object.assign(img.style, {
@@ -346,7 +354,6 @@ function renderAd(size, photoId, opts = {}) {
     });
     ad.append(panel);
   } else if (size.layoutType === 'split-side') {
-    // Photo on one side, solid panel on the other.
     const img = el('img', { src: photo.src, alt: '', className: 'photo-band' });
     Object.assign(img.style, {
       left: size.photoBox.x + '%', top: size.photoBox.y + '%',
@@ -361,7 +368,6 @@ function renderAd(size, photoId, opts = {}) {
     });
     ad.append(panel);
   } else {
-    // Full-bleed photo background.
     const img = el('img', { src: photo.src, alt: '', className: 'bg' });
     ad.append(img);
     if (size.fade === 'bottom') ad.append(el('div', { className: 'fade-bottom' }));
@@ -370,67 +376,35 @@ function renderAd(size, photoId, opts = {}) {
     if (size.fade === 'wash')   ad.append(el('div', { className: 'wash' }));
   }
 
-  // === Element rendering ===
-  if (size.layoutType === 'banner50') {
-    // 320x50 custom: wordmark stack on left, script tagline on right
-    const left = el('div');
-    Object.assign(left.style, {
-      position: 'absolute', left: '4%', top: '50%',
-      transform: 'translateY(-50%)', textAlign: 'left',
-    });
-    const logoLine = el('div', { className: 'el-logo' }, state.logoText);
-    Object.assign(logoLine.style, {
-      fontFamily: `'${state.fontDisplay}', sans-serif`,
-      fontSize: '38cqmin', lineHeight: '1.0', color: '#fff',
-    });
-    const tulumLine = el('div', { className: 'el-tulum' }, state.tulumText);
-    Object.assign(tulumLine.style, {
-      fontFamily: `'${state.fontScript}', cursive`,
-      fontSize: '46cqmin', lineHeight: '0.9',
-      marginTop: '-6cqmin', marginLeft: '20cqmin', color: '#fff',
-    });
-    left.append(logoLine, tulumLine);
-    ad.append(left);
+  // === Elements ===
+  const headline = getHeadline();
+  const logo = getLogo();
+  const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side';
 
-    const right = el('div', { className: 'el-script' }, state.scriptText);
-    Object.assign(right.style, {
-      position: 'absolute', right: '4%', top: '50%',
-      transform: 'translateY(-50%)', textAlign: 'right',
-      fontFamily: `'${state.fontScript}', cursive`,
-      fontSize: '60cqmin', lineHeight: '1.0', color: '#fff',
-      maxWidth: '54%',
-    });
-    ad.append(right);
-    return ad;
-  }
-
-  for (const key of (size.elements || [])) {
-    const layout = size.layout[key];
-    if (!layout) continue;
-    let node;
-    if (key === 'script') {
-      node = el('div', { className: 'el el-script' }, state.scriptText);
-      node.style.fontFamily = `'${state.fontScript}', cursive`;
-    } else if (key === 'display') {
-      node = el('div', { className: 'el el-display' }, state.displayText);
-      node.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
-    } else if (key === 'subtitle') {
-      node = el('div', { className: 'el el-subtitle' }, state.subtitle);
-    } else if (key === 'body') {
-      node = el('div', { className: 'el el-body' }, state.body);
-    } else if (key === 'logo') {
-      if (layout.isPalmLogo) {
-        // Use the brand's actual hand-drawn palm + AMANSALA wordmark asset.
-        node = el('img', { src: 'assets/logos/logo-white.png', alt: state.logoText, className: 'el' });
-        node.style.objectFit = 'contain';
-        node.style.height = 'auto';
-      } else {
-        node = el('div', { className: 'el el-logo' }, state.logoText);
-        node.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
+  for (const e of (size.elements || [])) {
+    if (e.type === 'headline') {
+      const img = el('img', { src: headline.src, alt: '', className: 'el-img' });
+      placeImg(img, e);
+      // Invert headline (white -> dark) for light-panel placements with dark text mode.
+      if (e.invertOnPanel && isPanelLayout && state.panelTone === 'dark') {
+        img.style.filter = 'invert(1)';
       }
-    } else continue;
-    Object.assign(node.style, posStyle(layout, state.panelTextColor));
-    ad.append(node);
+      ad.append(img);
+    } else if (e.type === 'logo') {
+      // Auto-pick logo color: in panel layouts use color matching panelTone.
+      let logoSrc = logo.src;
+      if (isPanelLayout) {
+        if (state.panelTone === 'dark') logoSrc = LOGOS.find(l => l.id === 'black').src;
+        else logoSrc = LOGOS.find(l => l.id === 'white').src;
+      }
+      const img = el('img', { src: logoSrc, alt: '', className: 'el-img' });
+      placeImg(img, e);
+      ad.append(img);
+    } else if (e.type === 'body') {
+      const node = el('div', { className: 'el el-body' }, state.bodyText);
+      placeText(node, e, state.panelTone);
+      ad.append(node);
+    }
   }
 
   return ad;
@@ -447,7 +421,7 @@ function renderGrid() {
       el('span', { className: 'dims' }, 'native ' + size.w + '×' + size.h),
     );
     const tags = el('div', { className: 'ele-tags' });
-    for (const k of size.elements) tags.append(el('span', { className: 'ele-tag' }, k));
+    for (const e of size.elements) tags.append(el('span', { className: 'ele-tag' }, e.type));
     header.append(tags);
     sec.append(header);
 
@@ -463,16 +437,8 @@ function renderGrid() {
   }
 }
 
-// Sidebar bindings
-document.getElementById('in-script').addEventListener('input', e => { state.scriptText = e.target.value; renderGrid(); });
-document.getElementById('in-display').addEventListener('input', e => { state.displayText = e.target.value; renderGrid(); });
-document.getElementById('in-subtitle').addEventListener('input', e => { state.subtitle = e.target.value; renderGrid(); });
-document.getElementById('in-body').addEventListener('input', e => { state.body = e.target.value; renderGrid(); });
-document.getElementById('in-logo').addEventListener('input', e => { state.logoText = e.target.value; renderGrid(); });
-document.getElementById('in-tulum').addEventListener('input', e => { state.tulumText = e.target.value; renderGrid(); });
-document.getElementById('fontScript').addEventListener('change', e => { state.fontScript = e.target.value; renderGrid(); });
-document.getElementById('fontDisplay').addEventListener('change', e => { state.fontDisplay = e.target.value; renderGrid(); });
-document.getElementById('panelTextColor').addEventListener('change', e => { state.panelTextColor = e.target.value; renderGrid(); });
+document.getElementById('in-body').addEventListener('input', e => { state.bodyText = e.target.value; renderGrid(); });
+document.getElementById('panelTone').addEventListener('change', e => { state.panelTone = e.target.value; renderGrid(); });
 
 document.querySelectorAll('#panelSwatches .panel-swatch').forEach(sw => {
   sw.addEventListener('click', () => {
@@ -536,7 +502,8 @@ async function exportZip() {
 
 document.getElementById('exportBtn').addEventListener('click', exportZip);
 
-// Bootstrap
+buildHeadlinePicker();
+buildLogoPicker();
 renderGrid();
 </script>
 </body>

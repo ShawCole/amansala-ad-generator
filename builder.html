@@ -142,7 +142,7 @@ on the beach.</textarea>
 
 <main>
   <div class="intro">
-    <p><strong>What this is.</strong> A live-preview ad builder for the Amansala team. All 13 photos × all 7 DSP sizes = 91 ad variations on this page, updating instantly when you change the headline, logo, body, or panel.</p>
+    <p><strong>What this is.</strong> A live-preview ad builder for the Amansala team. Each DSP size loads its own native-aspect-ratio photo set (no crop-cramming): 13 at 300×600, 6 each at 160×600 and 728×90, 3 at 300×250 / 320×100 / 320×50 — total 34 ad variations on this page, updating instantly.</p>
     <p><strong>Headline + logo are PNG artwork</strong> (brand-locked, designed in Canva). Body copy is editable. To add a new campaign headline (e.g., Mother's Day, Soulful Singles), drop a transparent-PNG into <code>assets/headlines/</code> and add an entry to the catalog list at the top of <code>builder.html</code>.</p>
     <p><strong>Export.</strong> Click <strong>Export ZIP</strong> for one PNG per photo per size, organized into folders.</p>
   </div>
@@ -153,8 +153,23 @@ on the beach.</textarea>
 <div class="progress" id="progress">Rendering…</div>
 
 <script>
-const PHOTO_COUNT = 13;
-const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({ id: i + 1, src: 'assets/photos/' + (i + 1) + '.png' }));
+// Per-size photo library. Each size loads photos at its native aspect ratio
+// from assets/photos/<size>/<n>.png so we don't crop-cram one set across all sizes.
+const SIZE_PHOTOS = {
+  '300x250': 3,
+  '300x600': 13,
+  '160x600': 6,
+  '728x90':  6,
+  '320x100': 3,
+  '320x50':  3,
+};
+function photosFor(sizeId) {
+  const count = SIZE_PHOTOS[sizeId] || 0;
+  return Array.from({length: count}, (_, i) => ({
+    id: i + 1,
+    src: 'assets/photos/' + sizeId + '/' + (i + 1) + '.png',
+  }));
+}
 
 // Brand asset catalogs.
 const HEADLINES = [
@@ -328,7 +343,7 @@ function placeText(node, b, panelTone) {
 }
 
 function renderAd(size, photoId, opts = {}) {
-  const photo = PHOTOS.find(p => p.id === photoId);
+  const photo = photosFor(size.id).find(p => p.id === photoId);
   const ad = el('div', { className: 'ad' });
   const maxPreviewW = 460;
   const previewW = opts.exactWidth || (size.w <= maxPreviewW ? size.w : maxPreviewW);
@@ -426,7 +441,8 @@ function renderGrid() {
     sec.append(header);
 
     const grid = el('div', { className: 'ads-grid' });
-    for (const photo of PHOTOS) {
+    const photos = photosFor(size.id);
+    for (const photo of photos) {
       const card = el('div', { className: 'ad-card' });
       card.append(renderAd(size, photo.id));
       card.append(el('div', { className: 'meta' }, 'photo #' + photo.id));
@@ -455,12 +471,12 @@ async function exportZip() {
   btn.disabled = true;
   progress.classList.add('visible');
   const zip = new JSZip();
-  const total = SIZES.length * PHOTOS.length;
+  const total = SIZES.reduce((sum, s) => sum + (SIZE_PHOTOS[s.id] || 0), 0);
   let done = 0;
 
   for (const size of SIZES) {
     const folder = zip.folder(size.id);
-    for (const photo of PHOTOS) {
+    for (const photo of photosFor(size.id)) {
       progress.textContent = 'Rendering ' + size.id + ' / photo #' + photo.id + ' (' + (done + 1) + '/' + total + ')…';
       const offscreen = el('div');
       Object.assign(offscreen.style, {

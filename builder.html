@@ -257,24 +257,19 @@ const SIZES = [
   },
   {
     id: '728x90', w: 728, h: 90, label: 'Leaderboard',
-    layoutType: 'photo-strip',          // 3 photo strips on left (~70%), panel on right (~30%)
-    panel: { x: 70, y: 0, w: 30, h: 100 },
-    photoStrips: [                      // 3 strips of equal width filling the photo area
-      { x: 0,    y: 0, w: 23.3, h: 100 },
-      { x: 23.3, y: 0, w: 23.3, h: 100 },
-      { x: 46.6, y: 0, w: 23.3, h: 100 },
-    ],
+    layoutType: 'multi-strip',
+    layoutsKey: '728x90',          // looked up in LAYOUTS_728x90 by photoId modulus
     elements: [
-      { type: 'headline', x: 85, y: 50, w: 26, align: 'center', invertOnPanel: true },
+      // Headline rendered inside the panel; x/y/w get rewritten per-variant at render time.
+      { type: 'headline', align: 'center', placeOnPanel: true },
     ],
   },
   {
     id: '320x100', w: 320, h: 100, label: 'Mobile Large',
-    layoutType: 'split-side',
-    panel: { x: 0, y: 0, w: 50, h: 100 },
-    photoBox: { x: 50, y: 0, w: 50, h: 100 },
+    layoutType: 'multi-strip',
+    layoutsKey: '320x100',
     elements: [
-      { type: 'headline', x: 25, y: 50, w: 44, align: 'center', invertOnPanel: true },
+      { type: 'headline', align: 'center', placeOnPanel: true },
     ],
   },
   {
@@ -285,7 +280,7 @@ const SIZES = [
       { type: 'fade', key: 'fadeLogo50', x: 18, y: 50, w: 30, h: 100, direction: 'radial' },
       { type: 'logo',    x: 18, y: 50, w: 26, align: 'center' },
       { type: 'fade', key: 'fadeTagline50', x: 70, y: 50, w: 60, h: 100, direction: 'radial' },
-      { type: 'tagline', x: 70, y: 50, w: 56, fontCq: 80, align: 'center', color: '#fff' },
+      { type: 'tagline', x: 70, y: 50, w: 56, fontCq: 50, align: 'center', color: '#fff' },
     ],
   },
 ];
@@ -295,6 +290,60 @@ const PANEL_COLORS_160x600 = {
   1: '#87867F', 2: '#847977', 3: '#637A7A',
   4: '#87867F', 5: '#847977', 6: '#637A7A',
 };
+// Brand-pastel palette used by leaderboard + mobile-large panels (matches Canva refs).
+const BRAND_PASTELS = ['#E7B8B8', '#B8DCE0', '#E5B884', '#D4B0AB', '#A8C8C5', '#E0BE9C'];
+
+function relLuminance(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  // Simple perceived luminance (good enough for binary text-color choice).
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+// 728×90 layout variants — vary panel position so consecutive ads look distinct.
+// Each variant lists photo strips (photoOffset = which neighbor photo to use) + panel rect.
+const LAYOUTS_728x90 = [
+  // Panel slot 2 (between photo 1 and photo 2-3)
+  {
+    strips: [
+      { x: 0,  y: 0, w: 33, h: 100, photoOffset: 0 },
+      { x: 47, y: 0, w: 26, h: 100, photoOffset: 1 },
+      { x: 73, y: 0, w: 27, h: 100, photoOffset: 2 },
+    ],
+    panel: { x: 33, y: 0, w: 14, h: 100 },
+  },
+  // Panel slot 1 (after first photo, before three more)
+  {
+    strips: [
+      { x: 0,  y: 0, w: 22, h: 100, photoOffset: 0 },
+      { x: 38, y: 0, w: 21, h: 100, photoOffset: 1 },
+      { x: 59, y: 0, w: 20, h: 100, photoOffset: 2 },
+      { x: 79, y: 0, w: 21, h: 100, photoOffset: 3 },
+    ],
+    panel: { x: 22, y: 0, w: 16, h: 100 },
+  },
+  // Panel on right
+  {
+    strips: [
+      { x: 0,  y: 0, w: 30, h: 100, photoOffset: 0 },
+      { x: 30, y: 0, w: 19, h: 100, photoOffset: 1 },
+      { x: 49, y: 0, w: 33, h: 100, photoOffset: 2 },
+    ],
+    panel: { x: 82, y: 0, w: 18, h: 100 },
+  },
+];
+
+// 320×100: photo | panel | photo (panel centered, ~30% width)
+const LAYOUTS_320x100 = [
+  {
+    strips: [
+      { x: 0,  y: 0, w: 32, h: 100, photoOffset: 0 },
+      { x: 68, y: 0, w: 32, h: 100, photoOffset: 1 },
+    ],
+    panel: { x: 32, y: 0, w: 36, h: 100 },
+  },
+];
 
 const state = {
   headlineId: 'bikini-bootcamp',
@@ -314,7 +363,17 @@ const state = {
 function resolvePanelColor(sizeId, photoId) {
   if (state.panelColor !== 'auto') return state.panelColor;
   if (sizeId === '160x600' && PANEL_COLORS_160x600[photoId]) return PANEL_COLORS_160x600[photoId];
-  return '#87867F'; // fallback for non-160×600 sizes when 'auto' selected
+  if (sizeId === '728x90' || sizeId === '320x100') {
+    return BRAND_PASTELS[(photoId - 1) % BRAND_PASTELS.length];
+  }
+  return '#87867F';
+}
+
+// Pick which 728×90 layout variant this ad uses based on photoId.
+function getLayoutVariant(sizeId, photoId) {
+  if (sizeId === '728x90') return LAYOUTS_728x90[(photoId - 1) % LAYOUTS_728x90.length];
+  if (sizeId === '320x100') return LAYOUTS_320x100[(photoId - 1) % LAYOUTS_320x100.length];
+  return null;
 }
 
 let selectedEl = null;
@@ -704,28 +763,30 @@ function renderAd(size, photoId, opts = {}) {
       background: panelBg,
     });
     ad.append(panel);
-  } else if (size.layoutType === 'photo-strip') {
-    // Multi-photo collage. Use neighbor photos so each ad is unique.
+  } else if (size.layoutType === 'multi-strip') {
+    // Variant-driven photo strips + a single panel. Variant chosen per photoId.
+    const variant = getLayoutVariant(size.id, photoId);
     const allPhotos = photosFor(size.id);
     const N = allPhotos.length;
     const baseIdx = allPhotos.findIndex(p => p.id === photoId);
-    for (let i = 0; i < size.photoStrips.length; i++) {
-      const strip = size.photoStrips[i];
-      const stripPhoto = allPhotos[(baseIdx + i) % N];
-      const img = el('img', { src: stripPhoto.src, alt: '', className: 'photo-band' });
-      Object.assign(img.style, {
-        left: strip.x + '%', top: strip.y + '%',
-        width: strip.w + '%', height: strip.h + '%',
+    if (variant) {
+      for (const strip of variant.strips) {
+        const stripPhoto = allPhotos[(baseIdx + (strip.photoOffset || 0)) % N];
+        const img = el('img', { src: stripPhoto.src, alt: '', className: 'photo-band' });
+        Object.assign(img.style, {
+          left: strip.x + '%', top: strip.y + '%',
+          width: strip.w + '%', height: strip.h + '%',
+        });
+        ad.append(img);
+      }
+      const panel = el('div', { className: 'panel' });
+      Object.assign(panel.style, {
+        left: variant.panel.x + '%', top: variant.panel.y + '%',
+        width: variant.panel.w + '%', height: variant.panel.h + '%',
+        background: panelBg,
       });
-      ad.append(img);
+      ad.append(panel);
     }
-    const panel = el('div', { className: 'panel' });
-    Object.assign(panel.style, {
-      left: size.panel.x + '%', top: size.panel.y + '%',
-      width: size.panel.w + '%', height: size.panel.h + '%',
-      background: panelBg,
-    });
-    ad.append(panel);
   } else {
     const img = el('img', { src: photo.src, alt: '', className: 'bg' });
     ad.append(img);
@@ -738,7 +799,11 @@ function renderAd(size, photoId, opts = {}) {
   // === Elements ===
   const headline = getHeadline();
   const logo = getLogo();
-  const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side' || size.layoutType === 'photo-strip';
+  const isPanelLayout = size.layoutType === 'split-stack' || size.layoutType === 'split-side' || size.layoutType === 'multi-strip';
+  // Auto-pick text color from panel luminance: dark text only on very-light panels (cream/near-white).
+  // Pastel pinks/blues/oranges and mid-tone grays keep white headline (matches Paulina's Canva refs).
+  const useDarkOnPanel = isPanelLayout && relLuminance(panelBg) > 0.85;
+  const variantForSize = getLayoutVariant(size.id, photoId);
 
   // 300×600 layout-variant filter — drop body/headline based on user pick.
   const variant = state.layoutVariant;
@@ -769,16 +834,27 @@ function renderAd(size, photoId, opts = {}) {
       ad.append(node);
     } else if (e.type === 'headline') {
       const img = el('img', { src: headline.src, alt: '', className: 'el-img' });
-      placeImg(img, eff);
-      if (e.invertOnPanel && isPanelLayout && state.panelTone === 'dark') {
+      // For multi-strip layouts, derive headline position from the variant's panel rect.
+      let layout = eff;
+      if (e.placeOnPanel && variantForSize) {
+        const p = variantForSize.panel;
+        layout = applyOverride({
+          x: p.x + p.w / 2,
+          y: p.y + p.h / 2,
+          w: Math.max(8, p.w * 0.85),
+          align: 'center',
+        }, size.id, photoId, eleKey);
+      }
+      placeImg(img, layout);
+      if (isPanelLayout && useDarkOnPanel) {
         img.style.filter = 'invert(1) drop-shadow(0 1px 2px rgba(255,255,255,0.5))';
       }
       if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(img);
     } else if (e.type === 'logo') {
       let logoSrc = logo.src;
-      if (isPanelLayout && size.layoutType !== 'photo-strip') {
-        if (state.panelTone === 'dark') logoSrc = LOGOS.find(l => l.id === 'black').src;
+      if (isPanelLayout && size.layoutType !== 'multi-strip') {
+        if (useDarkOnPanel) logoSrc = LOGOS.find(l => l.id === 'black').src;
         else logoSrc = LOGOS.find(l => l.id === 'white').src;
       }
       const img = el('img', { src: logoSrc, alt: '', className: 'el-img' });
@@ -787,7 +863,7 @@ function renderAd(size, photoId, opts = {}) {
       ad.append(img);
     } else if (e.type === 'body') {
       const node = el('div', { className: 'el el-body' }, state.bodyText);
-      placeText(node, eff, state.panelTone);
+      placeText(node, eff, useDarkOnPanel ? 'dark' : 'light');
       if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(node);
     } else if (e.type === 'tagline') {

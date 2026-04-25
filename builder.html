@@ -82,6 +82,8 @@
   .ad .el-img:active { cursor: grabbing; }
   .ad .el-body { font-family: 'Nunito Sans', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.45; text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 2px 14px rgba(0,0,0,0.45); }
   .ad .el-tagline { font-family: 'Pinyon Script', cursive; font-weight: 400; line-height: 0.95; }
+  .ad .el-fade { pointer-events: auto; cursor: grab; }
+  .ad .el-fade:active { cursor: grabbing; }
   .ad .el-body.panel-text { text-shadow: 0 0 0 transparent; }
   .ad .el-img.panel-text { filter: none; }
   .ad .el-selected { outline: 2px dashed #E27F7F; outline-offset: 4px; }
@@ -108,8 +110,10 @@
 <aside class="sidebar">
   <div class="section">
     <h3>Headline (campaign artwork)</h3>
-    <p style="font-size:11px; color:var(--espresso); margin:0 0 10px; line-height:1.4;">The headline is a brand-locked PNG. New campaigns add a file to <code>assets/headlines/</code>.</p>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 10px; line-height:1.4;">The headline is a brand-locked PNG. Upload below to add a new campaign — saved per browser.</p>
     <div class="asset-picker" id="headlinePicker"></div>
+    <label style="margin-top:12px;">Upload new headline PNG</label>
+    <input type="file" id="uploadHeadline" accept="image/png" style="font-size:11px;" />
   </div>
 
   <div class="section">
@@ -131,6 +135,13 @@ pampered
 on the beach.</textarea>
     <label>Tagline (320×50 mobile banner)</label>
     <input type="text" id="in-tagline" value="make memories with mom" placeholder="e.g. make memories with mom" />
+  </div>
+
+  <div class="section">
+    <h3>Legibility (fade behind text)</h3>
+    <p style="font-size:11px; color:var(--espresso); margin:0 0 8px; line-height:1.4;">Soft scrim behind each text/logo element on photo backgrounds. Each fade is a movable element — click and drag to reposition per ad.</p>
+    <label>Global intensity <span id="fadeIntensityNum" style="float:right; color:var(--espresso); font-weight:700;">100%</span></label>
+    <input type="range" id="fadeIntensity" min="0" max="200" value="100" style="width:100%;" />
   </div>
 
   <div class="section">
@@ -194,9 +205,12 @@ function photosFor(sizeId) {
 }
 
 // Brand asset catalogs.
-const HEADLINES = [
+const BUILTIN_HEADLINES = [
   { id: 'bikini-bootcamp', label: 'Bikini Bootcamp', src: 'assets/headlines/bikini-bootcamp-white.png', includesSubtitle: true },
 ];
+function allHeadlines() {
+  return [...BUILTIN_HEADLINES, ...(state.uploadedHeadlines || [])];
+}
 const LOGOS = [
   { id: 'white', label: 'White', src: 'assets/logos/amansala-white.png', darkBg: true },
   { id: 'gold',  label: 'Gold',  src: 'assets/logos/amansala-gold.png', darkBg: false },
@@ -212,6 +226,7 @@ const SIZES = [
     id: '300x250', w: 300, h: 250, label: 'Medium Rectangle',
     fade: 'bottom',
     elements: [
+      { type: 'fade', key: 'fadeHeadline', x: 50, y: 45, w: 92, h: 65, direction: 'radial' },
       { type: 'headline', x: 50, y: 45, w: 78, align: 'center' },
     ],
   },
@@ -219,8 +234,11 @@ const SIZES = [
     id: '300x600', w: 300, h: 600, label: 'Half-Page',
     fade: 'both',
     elements: [
+      { type: 'fade', key: 'fadeHeadline', x: 50, y: 18, w: 95, h: 32, direction: 'radial' },
       { type: 'headline', x: 50, y: 18, w: 84, align: 'center' },
+      { type: 'fade', key: 'fadeBody', x: 50, y: 65, w: 92, h: 32, direction: 'radial' },
       { type: 'body',     x: 50, y: 65, w: 86, fontCq: 4.4, color: '#fff', align: 'center' },
+      { type: 'fade', key: 'fadeLogo', x: 50, y: 90, w: 60, h: 14, direction: 'radial' },
       { type: 'logo',     x: 50, y: 90, w: 32, align: 'center' },
     ],
   },
@@ -264,7 +282,9 @@ const SIZES = [
     fade: 'wash',
     layoutType: 'banner50',
     elements: [
+      { type: 'fade', key: 'fadeLogo50', x: 18, y: 50, w: 30, h: 100, direction: 'radial' },
       { type: 'logo',    x: 18, y: 50, w: 26, align: 'center' },
+      { type: 'fade', key: 'fadeTagline50', x: 70, y: 50, w: 60, h: 100, direction: 'radial' },
       { type: 'tagline', x: 70, y: 50, w: 56, fontCq: 80, align: 'center', color: '#fff' },
     ],
   },
@@ -284,7 +304,10 @@ const state = {
   layoutVariant: 'full', // 'full' | 'no-body' | 'logo-only' (300×600 only)
   panelColor: 'auto',     // 'auto' = derive per photo for 160×600; hex = fixed
   panelTone: 'dark',      // 'dark' = headline inverted, body text dark, for light panels
-  // Per-photo position+size overrides: overrides[sizeId][photoId][elementType] = {x, y, w}
+  fadeIntensity: 1.0,     // 0..2 multiplier scaling all fade alphas
+  // User-uploaded campaign headline assets (data URLs in localStorage so they persist).
+  uploadedHeadlines: JSON.parse(localStorage.getItem('amansala-builder-headlines') || '[]'),
+  // Per-photo position+size overrides: overrides[sizeId][photoId][elementKey] = {x, y, w, h}
   overrides: JSON.parse(localStorage.getItem('amansala-builder-overrides') || '{}'),
 };
 
@@ -310,6 +333,7 @@ function snapshot() {
     logoColor: state.logoColor,
     panelColor: state.panelColor,
     panelTone: state.panelTone,
+    fadeIntensity: state.fadeIntensity,
     overrides: state.overrides,
   });
 }
@@ -333,7 +357,10 @@ function applySnapshot(snap) {
   state.logoColor = obj.logoColor;
   state.panelColor = obj.panelColor;
   state.panelTone = obj.panelTone;
+  state.fadeIntensity = obj.fadeIntensity ?? state.fadeIntensity;
   state.overrides = obj.overrides;
+  if (document.getElementById('fadeIntensity')) document.getElementById('fadeIntensity').value = state.fadeIntensity;
+  if (document.getElementById('fadeIntensityNum')) document.getElementById('fadeIntensityNum').textContent = Math.round(state.fadeIntensity * 100) + '%';
   localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
   document.getElementById('in-body').value = state.bodyText;
   if (document.getElementById('in-tagline')) document.getElementById('in-tagline').value = state.taglineText;
@@ -504,13 +531,16 @@ function el(tag, attrs = {}, text) {
   return e;
 }
 
-function getHeadline() { return HEADLINES.find(h => h.id === state.headlineId) || HEADLINES[0]; }
+function getHeadline() {
+  const all = allHeadlines();
+  return all.find(h => h.id === state.headlineId) || all[0];
+}
 function getLogo() { return LOGOS.find(l => l.id === state.logoColor) || LOGOS[0]; }
 
 function buildHeadlinePicker() {
   const root = document.getElementById('headlinePicker');
   root.replaceChildren();
-  for (const h of HEADLINES) {
+  for (const h of allHeadlines()) {
     const lbl = el('label', { className: state.headlineId === h.id ? 'active' : '' });
     const cb = el('input', { type: 'radio', name: 'headline', value: h.id });
     cb.checked = state.headlineId === h.id;
@@ -722,42 +752,66 @@ function renderAd(size, photoId, opts = {}) {
 
   for (const e of (size.elements || [])) {
     if (!shouldRender(e)) continue;
-    const eff = applyOverride(e, size.id, photoId, e.type);
-    if (e.type === 'headline') {
+    const eleKey = e.key || e.type;
+    const eff = applyOverride(e, size.id, photoId, eleKey);
+    if (e.type === 'fade') {
+      const node = el('div', { className: 'el el-fade' });
+      Object.assign(node.style, {
+        position: 'absolute',
+        left: eff.x + '%',
+        top: eff.y + '%',
+        width: eff.w + '%',
+        height: (eff.h ?? 30) + '%',
+        transform: 'translate(-50%, -50%)',
+        background: fadeBackground(state.fadeIntensity, eff.direction || 'radial'),
+      });
+      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, eleKey, e);
+      ad.append(node);
+    } else if (e.type === 'headline') {
       const img = el('img', { src: headline.src, alt: '', className: 'el-img' });
       placeImg(img, eff);
       if (e.invertOnPanel && isPanelLayout && state.panelTone === 'dark') {
         img.style.filter = 'invert(1) drop-shadow(0 1px 2px rgba(255,255,255,0.5))';
       }
-      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, e.type, e);
+      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(img);
     } else if (e.type === 'logo') {
       let logoSrc = logo.src;
       if (isPanelLayout && size.layoutType !== 'photo-strip') {
-        // In split-stack/split-side panels, auto-pick logo color to match panel tone.
         if (state.panelTone === 'dark') logoSrc = LOGOS.find(l => l.id === 'black').src;
         else logoSrc = LOGOS.find(l => l.id === 'white').src;
       }
       const img = el('img', { src: logoSrc, alt: '', className: 'el-img' });
       placeImg(img, eff);
-      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, e.type, e);
+      if (opts.draggable !== false) makeDraggable(img, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(img);
     } else if (e.type === 'body') {
       const node = el('div', { className: 'el el-body' }, state.bodyText);
       placeText(node, eff, state.panelTone);
-      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, e.type, e);
+      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(node);
     } else if (e.type === 'tagline') {
       const node = el('div', { className: 'el el-tagline' }, state.taglineText);
       placeText(node, eff, state.panelTone);
-      // Tagline always has white shadow on photo backgrounds for legibility.
       node.style.textShadow = '0 1px 4px rgba(0,0,0,0.55), 0 2px 12px rgba(0,0,0,0.35)';
-      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, e.type, e);
+      if (opts.draggable !== false) makeDraggable(node, ad, opts.card, size.id, photoId, eleKey, e);
       ad.append(node);
     }
   }
 
   return ad;
+}
+
+function fadeBackground(intensity, direction) {
+  const base = 0.5;
+  const a = Math.max(0, Math.min(0.9, base * intensity));
+  if (direction === 'linear-bottom') {
+    return `linear-gradient(to top, rgba(0,0,0,${a}) 0%, rgba(0,0,0,0) 80%)`;
+  }
+  if (direction === 'linear-top') {
+    return `linear-gradient(to bottom, rgba(0,0,0,${a}) 0%, rgba(0,0,0,0) 80%)`;
+  }
+  return `radial-gradient(ellipse at center, rgba(0,0,0,${a}) 0%, rgba(0,0,0,${a*0.4}) 50%, rgba(0,0,0,0) 75%)`;
 }
 
 function renderGrid() {
@@ -835,6 +889,36 @@ document.querySelectorAll('#panelSwatches .panel-swatch').forEach(sw => {
 
 document.getElementById('undoBtn').addEventListener('click', undo);
 document.getElementById('redoBtn').addEventListener('click', redo);
+
+document.getElementById('fadeIntensity').addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10) / 100;
+  // Treat slider drag as one history entry via debounced typing-like flush.
+  recordTyping();
+  state.fadeIntensity = v;
+  document.getElementById('fadeIntensityNum').textContent = e.target.value + '%';
+  renderGrid();
+});
+
+document.getElementById('uploadHeadline').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('Please pick a PNG image.'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    const id = 'uploaded-' + Date.now();
+    const label = file.name.replace(/\.[^.]+$/, '').slice(0, 22);
+    const prev = snapshot();
+    state.uploadedHeadlines.push({ id, label, src: dataUrl });
+    state.headlineId = id;
+    localStorage.setItem('amansala-builder-headlines', JSON.stringify(state.uploadedHeadlines));
+    pushHistory(prev);
+    buildHeadlinePicker();
+    renderGrid();
+    e.target.value = ''; // reset input so same file can re-upload later
+  };
+  reader.readAsDataURL(file);
+});
 
 async function exportZip() {
   const btn = document.getElementById('exportBtn');

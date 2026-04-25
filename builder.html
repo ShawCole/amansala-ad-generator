@@ -76,8 +76,9 @@
   .ad .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .ad .photo-band { position: absolute; object-fit: cover; }
   .ad .panel { position: absolute; }
-  .ad .fade-bottom { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.45), rgba(0,0,0,0) 60%); pointer-events: none; }
-  .ad .fade-top { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0) 50%); pointer-events: none; }
+  .ad .fade-bottom { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.32), rgba(0,0,0,0) 45%); pointer-events: none; }
+  .ad .fade-top { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0) 45%); pointer-events: none; }
+  .ad .fade-both { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.4) 100%); pointer-events: none; }
   .ad .wash { position: absolute; inset: 0; background: linear-gradient(to right, rgba(0,0,0,0.18), rgba(0,0,0,0.05)); pointer-events: none; }
 
   .ad .el { position: absolute; line-height: 1.0; white-space: pre-wrap; }
@@ -196,24 +197,27 @@ const PHOTOS = Array.from({length: PHOTO_COUNT}, (_, i) => ({ id: i + 1, src: 'a
 const SIZES = [
   {
     id: '300x250', w: 300, h: 250, label: 'Medium Rectangle',
-    fade: 'bottom',
+    fade: 'top',
     elements: ['script', 'display', 'subtitle'],
+    // Reference packs the wordmark tight in upper-mid area, with subtitle directly under.
     layout: {
-      script:   { x: 50, y: 30, w: 88, fontCq: 24, color: '#fff', align: 'center' },
-      display:  { x: 50, y: 56, w: 88, fontCq: 14, color: '#fff', align: 'center' },
-      subtitle: { x: 50, y: 75, w: 88, fontCq: 4.2, color: '#fff', align: 'center' },
+      script:   { x: 50, y: 26, w: 88, fontCq: 30, color: '#fff', align: 'center' },
+      display:  { x: 50, y: 50, w: 88, fontCq: 17, color: '#fff', align: 'center' },
+      subtitle: { x: 50, y: 64, w: 88, fontCq: 4.5, color: '#fff', align: 'center' },
     }
   },
   {
     id: '300x600', w: 300, h: 600, label: 'Half-Page',
-    fade: 'bottom',
+    fade: 'both',
     elements: ['script', 'display', 'subtitle', 'body', 'logo'],
+    // Reference: huge script at top (~22% h), display under (~7%), subtitle thin,
+    // BIG gap, body in middle-lower, palm logo at bottom.
     layout: {
-      script:   { x: 50, y: 8,  w: 90, fontCq: 18, color: '#fff', align: 'center' },
-      display:  { x: 50, y: 18, w: 90, fontCq: 11, color: '#fff', align: 'center' },
-      subtitle: { x: 50, y: 26, w: 90, fontCq: 3.2, color: '#fff', align: 'center' },
-      body:     { x: 50, y: 64, w: 86, fontCq: 4.2, color: '#fff', align: 'center' },
-      logo:     { x: 50, y: 93, w: 70, fontCq: 4.0, color: '#fff', align: 'center' },
+      script:   { x: 50, y: 9,  w: 90, fontCq: 26, color: '#fff', align: 'center' },
+      display:  { x: 50, y: 23, w: 90, fontCq: 14, color: '#fff', align: 'center' },
+      subtitle: { x: 50, y: 32, w: 90, fontCq: 3.4, color: '#fff', align: 'center' },
+      body:     { x: 50, y: 65, w: 86, fontCq: 4.5, color: '#fff', align: 'center' },
+      logo:     { x: 50, y: 90, w: 32, fontCq: 5.5, color: '#fff', align: 'center', isPalmLogo: true },
     }
   },
   {
@@ -362,6 +366,7 @@ function renderAd(size, photoId, opts = {}) {
     ad.append(img);
     if (size.fade === 'bottom') ad.append(el('div', { className: 'fade-bottom' }));
     if (size.fade === 'top')    ad.append(el('div', { className: 'fade-top' }));
+    if (size.fade === 'both')   ad.append(el('div', { className: 'fade-both' }));
     if (size.fade === 'wash')   ad.append(el('div', { className: 'wash' }));
   }
 
@@ -414,8 +419,15 @@ function renderAd(size, photoId, opts = {}) {
     } else if (key === 'body') {
       node = el('div', { className: 'el el-body' }, state.body);
     } else if (key === 'logo') {
-      node = el('div', { className: 'el el-logo' }, state.logoText);
-      node.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
+      if (layout.isPalmLogo) {
+        // Use the brand's actual hand-drawn palm + AMANSALA wordmark asset.
+        node = el('img', { src: 'assets/logos/logo-white.png', alt: state.logoText, className: 'el' });
+        node.style.objectFit = 'contain';
+        node.style.height = 'auto';
+      } else {
+        node = el('div', { className: 'el el-logo' }, state.logoText);
+        node.style.fontFamily = `'${state.fontDisplay}', sans-serif`;
+      }
     } else continue;
     Object.assign(node.style, posStyle(layout, state.panelTextColor));
     ad.append(node);

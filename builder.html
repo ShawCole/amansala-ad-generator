@@ -311,14 +311,17 @@ function posStyle(b, panelTextColor) {
   return style;
 }
 
-function renderAd(size, photoId) {
+function renderAd(size, photoId, opts = {}) {
   const photo = PHOTOS.find(p => p.id === photoId);
   const ad = el('div', { className: 'ad' });
-  ad.style.aspectRatio = size.w + '/' + size.h;
-  // Width: cap small sizes at native, wide formats at ~480px max for the preview grid.
+  // Cap small sizes at native, wide formats at ~460px max for the preview grid.
   const maxPreviewW = 460;
-  const previewW = size.w <= maxPreviewW ? size.w : maxPreviewW;
+  const previewW = opts.exactWidth || (size.w <= maxPreviewW ? size.w : maxPreviewW);
+  const previewH = previewW * size.h / size.w;
+  // CRITICAL: set BOTH dimensions explicitly. container-type:size + cqmin units require
+  // definite block size, not just inline size + aspect-ratio.
   ad.style.width = previewW + 'px';
+  ad.style.height = previewH + 'px';
 
   // === Background construction ===
   if (size.layoutType === 'split-stack') {
@@ -486,8 +489,7 @@ async function exportZip() {
         position: 'fixed', left: '-99999px', top: '0',
         width: size.w + 'px', height: size.h + 'px',
       });
-      const ad = renderAd(size, photo.id);
-      ad.style.width = size.w + 'px';
+      const ad = renderAd(size, photo.id, { exactWidth: size.w });
       offscreen.append(ad);
       document.body.append(offscreen);
       await new Promise(r => requestAnimationFrame(r));

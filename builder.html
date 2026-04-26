@@ -89,6 +89,12 @@
   .ad .el-selected { outline: 2px dashed #E27F7F; outline-offset: 4px; }
   .ad-card .reset-btn { display: block; margin: 6px auto 0; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--sand); background: var(--cream); color: var(--espresso); border-radius: 3px; cursor: pointer; font-weight: 700; opacity: 0; transition: opacity 0.15s; }
   .ad-card.dirty .reset-btn { opacity: 1; }
+  .panel-color-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; }
+  .panel-color-chip { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--sand); cursor: pointer; padding: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: transform 0.1s; }
+  .panel-color-chip:hover { transform: scale(1.08); }
+  .panel-color-chip.overridden { border-color: var(--espresso); }
+  .panel-color-row .all-btn { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--sand); background: var(--cream); color: var(--espresso); border-radius: 3px; cursor: pointer; font-weight: 700; }
+  .panel-color-row .all-btn:hover { background: var(--sand); }
   .resize-handle { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid #E27F7F; border-radius: 50%; cursor: nwse-resize; transform: translate(50%, 50%); pointer-events: auto; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
   .progress { position: fixed; right: 24px; bottom: 24px; background: var(--near-black); color: var(--cream); padding: 12px 18px; border-radius: 6px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.2); display: none; z-index: 100; }
@@ -288,11 +294,11 @@ const SIZES = [
   },
 ];
 
-// Per-photo pale panel tones for 160×600 panels (extracted via PIL with lightness clamp 0.78–0.88).
-// References use desaturated near-cream tones, not saturated mid-tones.
+// Per-photo panel tones for 160×600 panels — more vibrant than first extraction.
+// Saturation 0.65×, lightness clamp 0.62–0.78 to preserve hue rather than washing to cream.
 const PANEL_COLORS_160x600 = {
-  1: '#D5D5D3', 2: '#D4D1D1', 3: '#CBD1D1',
-  4: '#D5D5D3', 5: '#D4D1D1', 6: '#CBD1D1',
+  1: '#BBBAB5', 2: '#BAB2B0', 3: '#A3B8B8',
+  4: '#BBBAB5', 5: '#BAB2B0', 6: '#A3B8B8',
 };
 // Brand-pastel palette used by leaderboard + mobile-large panels (matches Canva refs).
 const BRAND_PASTELS = ['#E7B8B8', '#B8DCE0', '#E5B884', '#D4B0AB', '#A8C8C5', '#E0BE9C'];
@@ -362,15 +368,39 @@ const state = {
   uploadedHeadlines: JSON.parse(localStorage.getItem('amansala-builder-headlines') || '[]'),
   // Per-photo position+size overrides: overrides[sizeId][photoId][elementKey] = {x, y, w, h}
   overrides: JSON.parse(localStorage.getItem('amansala-builder-overrides') || '{}'),
+  // Per-ad panel color overrides: panelOverrides[sizeId][photoId] = '#hex'
+  panelOverrides: JSON.parse(localStorage.getItem('amansala-builder-panel-overrides') || '{}'),
 };
 
 function resolvePanelColor(sizeId, photoId) {
+  // Per-ad override wins.
+  const perAd = state.panelOverrides?.[sizeId]?.[photoId];
+  if (perAd) return perAd;
   if (state.panelColor !== 'auto') return state.panelColor;
   if (sizeId === '160x600' && PANEL_COLORS_160x600[photoId]) return PANEL_COLORS_160x600[photoId];
   if (sizeId === '728x90' || sizeId === '320x100') {
     return BRAND_PASTELS[(photoId - 1) % BRAND_PASTELS.length];
   }
   return '#87867F';
+}
+
+function setPanelOverride(sizeId, photoId, color) {
+  state.panelOverrides[sizeId] = state.panelOverrides[sizeId] || {};
+  if (color == null) delete state.panelOverrides[sizeId][photoId];
+  else state.panelOverrides[sizeId][photoId] = color;
+  localStorage.setItem('amansala-builder-panel-overrides', JSON.stringify(state.panelOverrides));
+}
+
+function applyPanelColorToAllInSize(sizeId, color) {
+  state.panelOverrides[sizeId] = state.panelOverrides[sizeId] || {};
+  for (const p of photosFor(sizeId)) {
+    state.panelOverrides[sizeId][p.id] = color;
+  }
+  localStorage.setItem('amansala-builder-panel-overrides', JSON.stringify(state.panelOverrides));
+}
+
+function sizeHasPanel(size) {
+  return size.layoutType === 'split-stack' || size.layoutType === 'split-side' || size.layoutType === 'multi-strip';
 }
 
 // Pick which 728×90 layout variant this ad uses based on photoId.
@@ -398,6 +428,7 @@ function snapshot() {
     panelTone: state.panelTone,
     fadeIntensity: state.fadeIntensity,
     overrides: state.overrides,
+    panelOverrides: state.panelOverrides,
   });
 }
 
@@ -422,6 +453,10 @@ function applySnapshot(snap) {
   state.panelTone = obj.panelTone;
   state.fadeIntensity = obj.fadeIntensity ?? state.fadeIntensity;
   state.overrides = obj.overrides;
+  if (obj.panelOverrides) {
+    state.panelOverrides = obj.panelOverrides;
+    localStorage.setItem('amansala-builder-panel-overrides', JSON.stringify(state.panelOverrides));
+  }
   if (document.getElementById('fadeIntensity')) document.getElementById('fadeIntensity').value = state.fadeIntensity;
   if (document.getElementById('fadeIntensityNum')) document.getElementById('fadeIntensityNum').textContent = Math.round(state.fadeIntensity * 100) + '%';
   localStorage.setItem('amansala-builder-overrides', JSON.stringify(state.overrides));
@@ -930,6 +965,52 @@ function renderGrid() {
         renderGrid();
       });
       card.append(resetBtn);
+
+      // Per-ad panel color picker for sizes with a panel.
+      if (sizeHasPanel(size)) {
+        const colorRow = el('div', { className: 'panel-color-row' });
+        const currentColor = resolvePanelColor(size.id, photo.id);
+        const isOverridden = !!state.panelOverrides?.[size.id]?.[photo.id];
+        const chip = el('button', { className: 'panel-color-chip' + (isOverridden ? ' overridden' : ''), title: isOverridden ? 'Per-ad override · double-click to reset' : 'Click to pick panel color for this ad' });
+        chip.style.background = currentColor;
+        // Hidden file-style trick: we use a real <input type=color> sibling to trigger native picker.
+        const picker = el('input', { type: 'color', value: currentColor });
+        picker.style.cssText = 'position:absolute; opacity:0; pointer-events:none; width:0; height:0;';
+        chip.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          picker.click();
+        });
+        chip.addEventListener('dblclick', (ev) => {
+          ev.stopPropagation();
+          if (isOverridden) {
+            const prev = snapshot();
+            setPanelOverride(size.id, photo.id, null);
+            pushHistory(prev);
+            renderGrid();
+          }
+        });
+        picker.addEventListener('input', (ev) => {
+          // Live preview while user drags color picker.
+          chip.style.background = ev.target.value;
+        });
+        picker.addEventListener('change', (ev) => {
+          const prev = snapshot();
+          setPanelOverride(size.id, photo.id, ev.target.value);
+          pushHistory(prev);
+          renderGrid();
+        });
+        const allBtn = el('button', { className: 'all-btn', title: 'Apply this color to all ads at this size' }, 'All');
+        allBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const prev = snapshot();
+          applyPanelColorToAllInSize(size.id, currentColor);
+          pushHistory(prev);
+          renderGrid();
+        });
+        colorRow.append(chip, picker, allBtn);
+        card.append(colorRow);
+      }
+
       grid.append(card);
     }
     sec.append(grid);

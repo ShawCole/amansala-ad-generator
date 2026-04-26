@@ -245,14 +245,16 @@ const SIZES = [
   {
     id: '160x600', w: 160, h: 600, label: 'Wide Skyscraper',
     layoutType: 'split-stack',
-    panel: { x: 0, y: 30, w: 100, h: 40 },
+    panel: { x: 0, y: 28, w: 100, h: 42 },
+    // Two distinct photos per ad — top band uses this ad's photo, bottom band uses the next neighbor.
+    // photoOffset 0 = primary photo, 1 = next photo in catalog (wraps).
     photoBands: [
-      { x: 0, y: 0, w: 100, h: 30 },
-      { x: 0, y: 70, w: 100, h: 30 },
+      { x: 0, y: 0,  w: 100, h: 28, photoOffset: 0 },
+      { x: 0, y: 70, w: 100, h: 30, photoOffset: 1 },
     ],
     elements: [
-      { type: 'headline', x: 50, y: 42, w: 88, align: 'center', invertOnPanel: true },
-      { type: 'body',     x: 50, y: 62, w: 90, fontCq: 4.0, panelText: true, align: 'center' },
+      { type: 'headline', x: 50, y: 36, w: 90, align: 'center', invertOnPanel: true },
+      { type: 'body',     x: 50, y: 56, w: 92, fontCq: 7.5, panelText: true, align: 'center' },
     ],
   },
   {
@@ -286,10 +288,11 @@ const SIZES = [
   },
 ];
 
-// Per-photo dominant tones for 160×600 panels (extracted via PIL).
+// Per-photo pale panel tones for 160×600 panels (extracted via PIL with lightness clamp 0.78–0.88).
+// References use desaturated near-cream tones, not saturated mid-tones.
 const PANEL_COLORS_160x600 = {
-  1: '#87867F', 2: '#847977', 3: '#637A7A',
-  4: '#87867F', 5: '#847977', 6: '#637A7A',
+  1: '#D5D5D3', 2: '#D4D1D1', 3: '#CBD1D1',
+  4: '#D5D5D3', 5: '#D4D1D1', 6: '#CBD1D1',
 };
 // Brand-pastel palette used by leaderboard + mobile-large panels (matches Canva refs).
 const BRAND_PASTELS = ['#E7B8B8', '#B8DCE0', '#E5B884', '#D4B0AB', '#A8C8C5', '#E0BE9C'];
@@ -735,8 +738,12 @@ function renderAd(size, photoId, opts = {}) {
 
   // === Background ===
   if (size.layoutType === 'split-stack') {
+    const allPhotos = photosFor(size.id);
+    const N = allPhotos.length;
+    const baseIdx = allPhotos.findIndex(p => p.id === photoId);
     for (const band of size.photoBands) {
-      const img = el('img', { src: photo.src, alt: '', className: 'photo-band' });
+      const bandPhoto = allPhotos[(baseIdx + (band.photoOffset || 0)) % N];
+      const img = el('img', { src: bandPhoto.src, alt: '', className: 'photo-band' });
       Object.assign(img.style, {
         left: band.x + '%', top: band.y + '%',
         width: band.w + '%', height: band.h + '%',
